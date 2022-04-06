@@ -51,6 +51,14 @@ public class Location {
         return s;
     }
 
+    public static Location invalid(Set<Input> inputs){
+        Location s = new Location(-2, Output.invalid(), null);
+        for(Input input : inputs){
+            s.addTransition(Guard.COMPLEMENT_GUARD, input, 1.0, true, s);
+        }
+        return s;
+    }
+
     public void addTransition(Guard guard, Input input, double probability, boolean reset, Location target) {
         allTransitions = null;
         Set<Transition> transitionsForInput = transitions.computeIfAbsent(input, k -> new HashSet<>());

@@ -90,7 +90,7 @@ public class Evaluator {
 			measurement.addResult(result);
 			allLoggedTraces.addAll(learner.loggedSampleTraces());
 		}
-		measurement.persist(outputPath + "/" + "results.log");
+		measurement.persist(outputPath + "/" + String.format("%s_results.log", sulName));
 		System.out.println("Experiment finished.");
 	}
 
@@ -126,12 +126,12 @@ public class Evaluator {
 			measurement.addResult(result);
 			allLoggedTraces.addAll(learner.loggedSampleTraces());
 		}
-		measurement.persist(outputPath + "/" + "results.log");
+		measurement.persist(outputPath + "/" + String.format("%s_results.log", sulName));
 		System.out.println("Experiment finished.");
 	}
 
 	private void outputTrueModelAsDot(String outputPath) throws IOException {
-		exportDotFile(outputPath, "true_model", trueModel);
+		exportDotFile(outputPath, String.format("%s_true_model", sulName), trueModel);
 	}
 
 	private void computeOptimalProbalities(EvalMeasurement measurement, 

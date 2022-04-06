@@ -115,7 +115,7 @@ public class Interval {
         if (right == left)
             return left;
         if (right-left < 0)
-            throw new Error("random value in interview fail");
+            throw new Error(String.format("random value in interview fail for %s, min:%f", interval.toString(), minVal));
         int k = random.nextInt((int) ((right - left) * 2));
         return left + k / 2.0;
     }

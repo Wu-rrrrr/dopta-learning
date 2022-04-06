@@ -92,9 +92,10 @@ public class Guard {
 
     public double getRandomValue (double minValue, int bound) {
         List<Interval> validInterviews = new ArrayList<>();
-        for (Interval interview : intervals) {
-            if (!interview.hasBound() || interview.upperEndpoint() >= minValue) {
-                validInterviews.add(interview);
+        for (Interval interval : intervals) {
+            double upperBound = interval.hasBound() ? (interval.upperBoundType() == BoundType.CLOSED ? interval.upperEndpoint() : interval.upperEndpoint() - 0.5) : Double.MAX_VALUE;
+            if (upperBound >= minValue) {
+                validInterviews.add(interval);
             }
         }
         return validInterviews.get((int) (Math.random() * validInterviews.size())).getRandomValue(minValue, bound);

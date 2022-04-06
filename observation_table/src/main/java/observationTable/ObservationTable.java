@@ -34,6 +34,7 @@ public class ObservationTable implements Learner {
     private TreeMap<ResetTimedTrace, FastImmPair<Integer, Set<ResetTimedTrace>>> groupedAccSequences;
     private ResetTimedTrace firstShortTrace;
     private Location chaosLocation;
+    private Location invalidLocation;
     private boolean bfsSort = false;
 
     // new
@@ -202,21 +203,21 @@ public class ObservationTable implements Learner {
 
         for (TimedInput timedInput : timedInputs) {
             TimedSuffixTrace Etrace = TimedSuffixTrace.empty(timedInput);
-            Triple<List<Boolean>, Map<TimedOutput, Integer>, Boolean> freqAndCompleteness1 = teacher.frequencyQuery(t1, Etrace);
-            Triple<List<Boolean>, Map<TimedOutput, Integer>, Boolean> freqAndCompleteness2 = teacher.frequencyQuery(t2, Etrace);
+            Answer answer1 = teacher.query(t1, Etrace);
+            Answer answer2 = teacher.query(t2, Etrace);
 
-            if (freqAndCompleteness1.getRight() && !freqAndCompleteness1.getMiddle().isEmpty())
-                nrComplete1++;
-            if (freqAndCompleteness2.getRight() && !freqAndCompleteness2.getMiddle().isEmpty())
-                nrComplete2++;
-            for (Integer outputCount : freqAndCompleteness1.getMiddle().values())
+//            if (answer1.isComplete() && !answer1.getFrequencies().isEmpty())
+//                nrComplete1++;
+//            if (answer2.isComplete() && !answer2.getFrequencies().isEmpty())
+//                nrComplete2++;
+            for (Integer outputCount : answer1.getFrequencies().values())
                 nrEntries1 += outputCount;
-            for (Integer outputCount : freqAndCompleteness2.getMiddle().values())
+            for (Integer outputCount : answer2.getFrequencies().values())
                 nrEntries2 += outputCount;
         }
-        int completenessCompare = -Integer.compare(nrComplete1, nrComplete2);
-        if (completenessCompare != 0)
-            return completenessCompare;
+//        int completenessCompare = -Integer.compare(nrComplete1, nrComplete2);
+//        if (completenessCompare != 0)
+//            return completenessCompare;
         // sort descending
         return -Integer.compare(nrEntries1, nrEntries2);
     }
@@ -257,6 +258,7 @@ public class ObservationTable implements Learner {
             timeInputMap.get(firstShortTrace).add(singleInputEcol.getFirstInput());
         }
         chaosLocation = Location.chaos(inputs);
+        invalidLocation = Location.invalid(inputs);
 
         List<TimedIncompleteTrace> initialTraces = new ArrayList<>();
         for (TimedSuffixTrace colTrace : Ecols)
@@ -268,7 +270,7 @@ public class ObservationTable implements Learner {
 
     private void addLongRows(ResetTimedTrace shortRowTrace) {
         for (TimedInput i : timeInputMap.get(shortRowTrace)) {
-            Set<TimedOutput> outputsAfterShortAndI = teacher.frequencyQuery(shortRowTrace, TimedSuffixTrace.empty(i)).getMiddle().keySet();
+            Set<TimedOutput> outputsAfterShortAndI = teacher.query(shortRowTrace, TimedSuffixTrace.empty(i)).getFrequencies().keySet();
             for (TimedOutput o : outputsAfterShortAndI) {
                 ResetTimedTrace longTrace = shortRowTrace.append(FastImmPair.of(i, o));
                 if (!longRows.containsKey(longTrace) && !shortRows.containsKey(longTrace)) {
@@ -282,7 +284,7 @@ public class ObservationTable implements Learner {
 
     private void ensureConsistencyWithTree(ResetTimedTrace rowTrace, Row row) {
         for (TimedSuffixTrace colTrace : Ecols) {
-            row.get(colTrace).setFrequencies(teacher.frequencyQuery(rowTrace, colTrace));
+            row.put(colTrace, teacher.query(rowTrace, colTrace));
         }
     }
 
@@ -312,7 +314,8 @@ public class ObservationTable implements Learner {
                 cols.add(TimedSuffixTrace.empty(timedInput));
             }
             for (TimedSuffixTrace colTrace : cols) {
-                if (!teacher.frequencyQuery(shortTrace, colTrace).getRight())
+                Answer answer = teacher.query(shortTrace, colTrace);
+                if (answer.isValid() && !answer.isComplete())
                     incompleteTraces.add(new TimedIncompleteTrace(shortTrace.convert(), colTrace));
             }
         }
@@ -391,7 +394,6 @@ public class ObservationTable implements Learner {
             }
 
             hypo = buildHypothesis();
-//			obsTable.trim(hypo);
             if (rounds > 0 && rounds % setting.getPrintFrequency() == 0) {
                 dotExp.writeToFile(hypo, "hypotheses/hyp" + rounds + ".dot");
                 if (setting.getRmlExp() != null)
@@ -543,8 +545,8 @@ public class ObservationTable implements Learner {
                     if (s1.lastOutput().equals(s2.lastOutput()) && s1Row.statRowEquivalence(s2Row, compChecker)) {
                         // 检查相同timed input下的frequencies是否compatible
                         for (TimedInput timedInput : getAllSameInput(s1, s2)) {
-                            Answer answer1 = new Answer(teacher.frequencyQuery(s1, TimedSuffixTrace.empty(timedInput)));
-                            Answer answer2 = new Answer(teacher.frequencyQuery(s2, TimedSuffixTrace.empty(timedInput)));
+                            Answer answer1 = teacher.query(s1, TimedSuffixTrace.empty(timedInput));
+                            Answer answer2 = teacher.query(s2, TimedSuffixTrace.empty(timedInput));
                             if (!answer1.answerEqual(answer2, compChecker)) {
                                 return Optional.of(TimedSuffixTrace.empty(timedInput));
                             }
@@ -652,7 +654,7 @@ public class ObservationTable implements Learner {
     }
 
     private void addFreshCellToTable(ResetTimedTrace row, TimedSuffixTrace col) {
-        addTableCell(row, col, new Answer(false, new ArrayList<>(), new HashMap<>()));
+        addTableCell(row, col, Answer.ValidAnswer());
     }
 
     private void addTableCell(ResetTimedTrace row, TimedSuffixTrace col, Answer cellToAdd) {
@@ -701,6 +703,7 @@ public class ObservationTable implements Learner {
         Location initial = traceToStates.get(firstShortTrace).getLeft();
         hypothesis.setInitial(initial);
         hypothesis.addLocation(chaosLocation);
+        hypothesis.addLocation(invalidLocation);
         Set<Location> addedStates = addTransitions(initial, traceToStates);
         for (Location location : addedStates)
             hypothesis.addLocation(location);
@@ -788,12 +791,14 @@ public class ObservationTable implements Learner {
         Map<Input, List<Double>> chaosClockValuations = new HashMap<>();
         // may exist two transitions have a complete distribution and a chaos distribution started from the same location, and labeled with the same action, clockValuation
         Map<Input, List<Double>> unambiguousClockValuation = new HashMap<>();
+        Map<Input, List<Double>> invalidClockValuations = new HashMap<>();
         for (TimedSuffixTrace singleInputCol : singleInputCols) {
             Input input = singleInputCol.getFirstInput().getInput();
             frequencySets.put(input, new HashSet<>());
             discreteTransitions.put(input, new HashSet<>());
             chaosClockValuations.put(input, new ArrayList<>());
             unambiguousClockValuation.put(input, new ArrayList<>());
+            invalidClockValuations.put(input, new ArrayList<>());
         }
 
         Set<ResetTimedTrace> groupTraces = traceToLocations.get(accSeq).right;
@@ -801,9 +806,16 @@ public class ObservationTable implements Learner {
             for (TimedInput i : timeInputMap.get(trace)) {
                 TimedSuffixTrace iCol = TimedSuffixTrace.empty(i);
                 // System.out.println("Adding trans for input " + i);
-                Triple<List<Boolean>, Map<TimedOutput, Integer>, Boolean> freq = teacher.frequencyQuery(trace, iCol);
-                boolean extensionComplete = freq.getRight();
-                Map<TimedOutput, Integer> outputDistributionForI = freq.getMiddle();
+                Answer answer = teacher.query(trace, iCol);
+                if (!answer.isValid()) {
+                    if (!unambiguousClockValuation.get(i.getInput()).contains(i.getClockVal())
+                            && !chaosClockValuations.get(i.getInput()).contains(i.getClockVal())) {
+                        invalidClockValuations.get(i.getInput()).add(i.getClockVal());
+                    }
+                    continue;
+                }
+                boolean extensionComplete = answer.isComplete();
+                Map<TimedOutput, Integer> outputDistributionForI = answer.getFrequencies();
 
                 List<ResetTimedTrace> extensions = findExt(trace, i);
 
@@ -819,11 +831,12 @@ public class ObservationTable implements Learner {
                             + "entries in the corresponding table cell");
                 }
                 if (extensions.isEmpty()) {
-                    if (!extensionComplete && !unambiguousClockValuation.get(i.getInput()).contains(i.getClockVal())) {
+                    if (!unambiguousClockValuation.get(i.getInput()).contains(i.getClockVal())) {
                         chaosClockValuations.get(i.getInput()).add(i.getClockVal());
                     }
                 } else {
                     if (extensionComplete) {
+                        unambiguousClockValuation.get(i.getInput()).add(i.getClockVal());
                         Map<Edge, Integer> frequencies = new HashMap<>();
                         for (ResetTimedTrace ext : extensions) {
                             Row rowForExt = shortRows.containsKey(ext) ? shortRows.get(ext) : longRows.get(ext);
@@ -835,6 +848,7 @@ public class ObservationTable implements Learner {
                         frequencySets.get(i.getInput()).add(frequencies);
                         discreteTransitions.get(i.getInput()).add(FastImmPair.of(i.getClockVal(), frequencies));
                         chaosClockValuations.get(i.getInput()).remove(i.getClockVal());
+                        invalidClockValuations.get(i.getInput()).remove(i.getClockVal());
                     } else {
                         if (!unambiguousClockValuation.get(i.getInput()).contains(i.getClockVal())) {
                             chaosClockValuations.get(i.getInput()).add(i.getClockVal());
@@ -843,7 +857,7 @@ public class ObservationTable implements Learner {
                 }
             }
         }
-        constructTransitions(chaosLocation, compChecker, location, chaosClockValuations, discreteTransitions, frequencySets);
+        constructTransitions(chaosLocation, invalidLocation, compChecker, location, chaosClockValuations, invalidClockValuations, discreteTransitions, frequencySets);
     }
 
     @Override

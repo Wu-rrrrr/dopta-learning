@@ -24,6 +24,9 @@ public class Output {
     public static Output chaos(){
         return new Output("Chaos");
     }
+    public static Output invalid(){
+        return new Output("Invalid");
+    }
     public static Output sink() {
         return new Output("sink");
     }

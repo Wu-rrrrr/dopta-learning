@@ -21,7 +21,6 @@ import evaluation.Evaluator;
 import evaluation.config.experiment_configs.RandomModelConfig;
 import base.teacher.oracle.EqMode;
 import importer.json.JsonSUL;
-import suls.SUL;
 
 public class EvalRandomModels {
 	public static void main(String args[]) throws Exception{
@@ -32,8 +31,9 @@ public class EvalRandomModels {
 		JsonSUL trueSUL = JsonSUL.getPtaFromJsonFile(String.format("%s/%s-%d.json", trueSulFile, modelName, index));
 		trueSUL.init(seed);
 
-		Evaluator evaluator = new Evaluator(trueSUL, modelName, seed);
+		Evaluator evaluator = new Evaluator(trueSUL, modelName+"-"+index, seed);
 		evaluator.addConfig(RandomModelConfig.observationTable(seed, trueSUL, EqMode.PAC));
+		evaluator.addConfig(RandomModelConfig.classificationTree(seed, trueSUL, EqMode.PAC));
 
 		evaluator.evalTesting(20000, "results_only_testing/randomModels");
 	}

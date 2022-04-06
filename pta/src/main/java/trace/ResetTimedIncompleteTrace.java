@@ -29,6 +29,14 @@ public class ResetTimedIncompleteTrace extends IncompleteTrace<TimedOutput> {
         super(prefix, ResetTimedSuffixTrace.empty(lastInput));
     }
 
+    public TimedIncompleteTrace convert() {
+        List<FastImmPair<Output, TimedInput>> steps = new ArrayList<>();
+        for (FastImmPair<TimedOutput, TimedInput> step : getSteps()) {
+            steps.add(FastImmPair.of(step.left.getOutput(), step.right));
+        }
+        return new TimedIncompleteTrace(steps);
+    }
+
     public ResetTimedIncompleteTrace append(FastImmPair<TimedOutput, TimedInput> succSymbol) {
         List<FastImmPair<TimedOutput, TimedInput>> newTrace = new ArrayList<>();
         if (getPairs() != null && !getPairs().isEmpty()) {
@@ -57,12 +65,16 @@ public class ResetTimedIncompleteTrace extends IncompleteTrace<TimedOutput> {
     }
 
     public Triple<ResetTimedTrace, FastImmPair<TimedInput, TimedOutput>, ResetTimedSuffixTrace> splitAt(int pos) {
-        if(getPairs().size() <= 1 || pos+1 >= getPairs().size())
+        if(pos > getPairs().size() - 1)
             return null;
 
         ResetTimedTrace trace = getTrace();
-        FastImmPair<TimedInput, TimedOutput> middle = trace.get(pos);
         ResetTimedTrace prefix = trace.prefix(pos+1);
+        FastImmPair<TimedInput, TimedOutput> middle = null;
+        if (pos < getPairs().size()-1) {
+            middle = trace.get(pos);
+        }
+
         ResetTimedSuffixTrace suffix = new ResetTimedSuffixTrace(get(length()-1).right, new ArrayList<>());
         for (int i = trace.length()-2; i > pos; i--) {
             suffix.prepend(trace.get(i));

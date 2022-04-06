@@ -22,6 +22,14 @@ public class ResetTimedSuffixTrace extends SuffixTrace<TimedOutput> {
         return new ResetTimedSuffixTrace(symbol.getLeft(), newTrace);
     }
 
+    public TimedSuffixTrace convert() {
+        List<FastImmPair<Output, TimedInput>> steps = new ArrayList<>();
+        for (FastImmPair<TimedOutput, TimedInput> step : getTrace()) {
+            steps.add(FastImmPair.of(step.left.getOutput(), step.right));
+        }
+        return new TimedSuffixTrace(getFirstInput(), steps);
+    }
+
     public static ResetTimedSuffixTrace empty(TimedInput first) {
         return new ResetTimedSuffixTrace(first, new ArrayList<>());
     }

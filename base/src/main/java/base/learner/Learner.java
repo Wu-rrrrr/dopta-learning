@@ -30,17 +30,24 @@ public interface Learner {
     //获取最终结果自动机
     PTA getFinalHypothesis();
 
-    default void constructTransitions (Location chaosLocation, Compatibility compChecker, Location source, Map<Input, List<Double>> chaosClockValuations,
-                                              Map<Input, Set<FastImmPair<Double, Map<Edge, Integer>>>> discreteTransitions,
-                                              Map<Input, Set<Map<Edge, Integer>>> frequencySets) {
+    default void constructTransitions (Location chaosLocation, Location invalidLocation, Compatibility compChecker, Location source,
+                                       Map<Input, List<Double>> chaosClockValuations,
+                                       Map<Input, List<Double>> invalidClockValuations,
+                                       Map<Input, Set<FastImmPair<Double, Map<Edge, Integer>>>> discreteTransitions,
+                                       Map<Input, Set<Map<Edge, Integer>>> frequencySets) {
         Set<Input> inputs = frequencySets.keySet();
         Frequencies<Edge> chaosDistribution = new Frequencies<>();
         chaosDistribution.getActualFrequencies().put(new Edge(true, chaosLocation), FastImmPair.of(null, 1.0));
+        Frequencies<Edge> invalidDistribution = new Frequencies<>();
+        invalidDistribution.getActualFrequencies().put(new Edge(true, invalidLocation), FastImmPair.of(null, 1.0));
 
         for (Input input : inputs) {
             Map<Double, Frequencies<Edge>> representDistributions = new HashMap<>();
             for (double clockValuation : chaosClockValuations.get(input)) {
                 representDistributions.put(clockValuation, chaosDistribution);
+            }
+            for (double clockValuation : invalidClockValuations.get(input)) {
+                representDistributions.put(clockValuation, invalidDistribution);
             }
             Map<Map<Edge, Integer>, Frequencies<Edge>> representDistributionMap = getRepresentDistributionRelation(compChecker, frequencySets.get(input));
             for (FastImmPair<Double, Map<Edge, Integer>> discreteTransition : discreteTransitions.get(input)) {

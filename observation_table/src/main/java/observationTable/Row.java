@@ -11,9 +11,8 @@ public class Row {
 
     public Row(Set<TimedSuffixTrace> Ecols) {
         row = new HashMap<>();
-        for (TimedSuffixTrace Ecol :
-                Ecols) {
-            row.put(Ecol, new Answer(false, new ArrayList<>(), new HashMap<>()));
+        for (TimedSuffixTrace Ecol : Ecols) {
+            row.put(Ecol, Answer.ValidAnswer());
         }
     }
 

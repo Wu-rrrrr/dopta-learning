@@ -4,6 +4,7 @@ import automaton.Location;
 import automaton.PTA;
 import automaton.Transition;
 import base.Compatibility;
+import base.learner.Answer;
 import base.teacher.observationTree.ObservationTree;
 import org.apache.commons.lang3.tuple.Triple;
 import trace.*;
@@ -58,19 +59,20 @@ public class PACEquivalence extends EquivalenceOracle {
         while (true) {
             List<ResetTimedTrace> copied = new ArrayList<>(sampledTraces);
             for (ResetTimedTrace sampledTrace : copied) {
-                ResetTimedTrace prefix = sampledTrace.prefix(sampledTrace.length()-1);
-                TimedInput lastInput = sampledTrace.getIthInput(sampledTrace.length()-1);
-                Triple<List<Boolean>, Map<TimedOutput, Integer>, Boolean> treeFrequenciesAndCompleteness =
-                        tree.outputFrequenciesAndCompleteness(prefix, TimedSuffixTrace.empty(lastInput));
-                boolean isComplete = treeFrequenciesAndCompleteness.getRight();
+                ResetTimedIncompleteTrace incompleteTrace = sampledTrace.dropLastOutput();
+                // answer 必合法
+                Answer treeAnswer =
+                        tree.outputFrequenciesAndCompleteness(incompleteTrace.convert().getSteps());
+
+                boolean isComplete = treeAnswer.isComplete();
                 if (!isComplete) {
 //                    System.out.printf("%s-%s\n", prefix.convert(), lastInput);
-                    incompleteTraces.add(new TimedIncompleteTrace(prefix.convert(), lastInput));
+                    incompleteTraces.add(incompleteTrace.convert());
                     continue;
                 }
                 sampledTraces.remove(sampledTrace);
-                ResetTimedIncompleteTrace incompleteTrace = new ResetTimedIncompleteTrace(prefix, lastInput);
-                Map<TimedOutput, Integer> treeFreq = treeFrequenciesAndCompleteness.getMiddle();
+
+                Map<TimedOutput, Integer> treeFreq = treeAnswer.getFrequencies();
                 Map<TimedOutput, Integer> hypFreq = getHypoFrequencies(hypo, incompleteTrace);
                 if (!compatibilityChecker.compatible(treeFreq, hypFreq)) {
                     System.out.println(Optional.of(incompleteTrace));
@@ -91,8 +93,8 @@ public class PACEquivalence extends EquivalenceOracle {
         return FastImmPair.of(true, null);
     }
 
-    private Map<TimedOutput, Integer> getHypoFrequencies(PTA hypo, ResetTimedIncompleteTrace incompleteTrace) {
-        ResetTimedTrace trace = (ResetTimedTrace) incompleteTrace.getTrace();
+    public static Map<TimedOutput, Integer> getHypoFrequencies(PTA hypo, ResetTimedIncompleteTrace incompleteTrace) {
+        ResetTimedTrace trace = incompleteTrace.getTrace();
         TimedInput lastInput = incompleteTrace.get(incompleteTrace.length()-1).right;
 
         Location location = hypo.getStateReachedByResetLogicalTimedTrace(trace).left;
@@ -105,6 +107,5 @@ public class PACEquivalence extends EquivalenceOracle {
         }
         return frequencies;
     }
-
 
 }

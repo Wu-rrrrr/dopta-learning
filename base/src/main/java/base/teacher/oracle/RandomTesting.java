@@ -202,13 +202,14 @@ public class RandomTesting {
 
 	protected TimedInput chooseRandomInput(double currentLogicalTime) {
 		Input input = inputList.get(random.nextInt(inputList.size()));
-		double delayClockValuation = random.nextInt(2 * bound - (int) Math.ceil(currentLogicalTime * 2));
-		if (delayClockValuation % 2 == 1) {
-			delayClockValuation = Math.floor(delayClockValuation / 2) + regionNormalization;
+		int base = (int) Math.ceil(currentLogicalTime * 2);
+		double randomLogicalTime = base + random.nextInt(2 * bound - base);
+		if (randomLogicalTime % 2 == 1) {
+			randomLogicalTime = Math.floor(randomLogicalTime / 2) + regionNormalization;
 		} else {
-			delayClockValuation /= 2;
+			randomLogicalTime /= 2;
 		}
-		return TimedInput.create(input.getSymbol(), delayClockValuation);
+		return TimedInput.create(input.getSymbol(), randomLogicalTime - currentLogicalTime);
 	}
 
 	public boolean isStopAtCex() {

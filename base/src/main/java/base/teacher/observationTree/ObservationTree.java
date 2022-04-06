@@ -19,6 +19,7 @@ package base.teacher.observationTree;
 
 import automaton.Input;
 import automaton.Output;
+import base.learner.Answer;
 import org.apache.commons.lang3.tuple.Triple;
 import trace.*;
 import utils.FastImmPair;
@@ -37,7 +38,7 @@ public class ObservationTree {
 	private Set<Input> inputs = null;
 	private Node root = null;
 	// TODO make nice
-	public static int completenessThreshold = 200;
+	public static int completenessThreshold = 150;
 	public Set<Input> getInputs() { return inputs;}
 	public ObservationTree(Set<Input> inputs){
 		setRoot(new Node());
@@ -61,57 +62,47 @@ public class ObservationTree {
 		return addObservationTrace(next, trace.suffix(1));
 	}
 
-	public Triple<List<Boolean>, Map<TimedOutput, Integer>, Boolean> outputFrequenciesAndCompleteness(ResetTimedTrace trace,
-			TimedSuffixTrace suffixTrace){
+	public Answer outputFrequenciesAndCompleteness(ResetTimedTrace trace,
+												   TimedSuffixTrace suffixTrace){
 		TimedIncompleteTrace incTrace = new TimedIncompleteTrace(trace.convert(), suffixTrace);
-		Triple<List<Boolean>, Map<TimedOutput, Integer>, Boolean> result = outputFrequenciesAndCompleteness(incTrace.getSteps());
-		List<Boolean> suffixResets = new ArrayList<>();
-		if (incTrace.length() > trace.length()) {
-			suffixResets = result.getLeft().subList(trace.length(), incTrace.length());
+		Answer result = outputFrequenciesAndCompleteness(incTrace.getSteps());
+		if (result.isValid()) {
+			List<Boolean> suffixResets = new ArrayList<>();
+			if (incTrace.length() > trace.length()) {
+				suffixResets = result.getResets().subList(trace.length(), incTrace.length());
+			}
+			result.setResets(suffixResets);
 		}
-		return Triple.of(suffixResets, result.getMiddle(), result.getRight());
+		return result;
 	}
-	public Triple<List<Boolean>, Map<TimedOutput, Integer>, Boolean> outputFrequenciesAndCompleteness(List<FastImmPair<Output,TimedInput>> incompleteTrace){
+	public Answer outputFrequenciesAndCompleteness(List<FastImmPair<Output,TimedInput>> incompleteTrace){
 		List<Boolean> resets = new ArrayList<>();
+		resets.add(true);
 		Node current = getRoot();
 		for (int i = 0; i < incompleteTrace.size(); i++) {
 			FastImmPair<Output, TimedInput> outputTimedInputFastImmPair = incompleteTrace.get(i);
 			boolean lastIsComplete = current.isComplete();
 			FastImmPair<Node, Boolean> next = current.getChildFromTimedStep(outputTimedInputFastImmPair);
 			if (next.left == null) {
-				// 不存在对应的 timed output 在 output frequencies
-				if (next.right == null && lastIsComplete) {
-					for (; i < incompleteTrace.size(); i++) {
-						resets.add(true);
+				// 存在对应的timed output在上一步的frequency，考虑逻辑时间合法性
+				if (next.right != null) {
+					double delayTime = next.right ? outputTimedInputFastImmPair.right.getClockVal()
+							: outputTimedInputFastImmPair.right.getClockVal() - incompleteTrace.get(i-1).right.getClockVal();
+					// 逻辑时间不合法，不需要再测试
+					if (delayTime < 0) {
+						return Answer.InvalidAnswer();
 					}
-					lastIsComplete = true;
-				} else {
-					if (next.right != null) {
-						double delayTime = next.right ? outputTimedInputFastImmPair.right.getClockVal()
-								: outputTimedInputFastImmPair.right.getClockVal() - incompleteTrace.get(i-1).right.getClockVal();
-						if (delayTime < 0) {
-							for (; i < incompleteTrace.size(); i++) {
-								resets.add(true);
-							}
-							lastIsComplete = true;
-						} else {
-							resets = new ArrayList<>();
-							lastIsComplete = false;
-						}
-					} else {
-						resets = new ArrayList<>();
-						lastIsComplete = false;
-					}
+					lastIsComplete = false;
 				}
 
-				return Triple.of(resets, Collections.<TimedOutput, Integer>emptyMap(), lastIsComplete);
+				return Answer.setValidAnswer(new ArrayList<>(), Collections.<TimedOutput, Integer>emptyMap(), lastIsComplete);
 			}
 
 			current = next.left;
 			resets.add(next.right);
 		}
 
-		return Triple.of(resets, current.getOutputFrequencies(), current.isComplete());
+		return Answer.setValidAnswer(resets, new HashMap<>(current.getOutputFrequencies()), current.isComplete());
 	}
 	// return all shortest traces leading to incomplete nodes
 	public List<ResetTimedIncompleteTrace> findIncomplete() {

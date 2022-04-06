@@ -4,6 +4,7 @@ import automaton.Input;
 import automaton.Output;
 import automaton.PTA;
 import base.Compatibility;
+import base.learner.Answer;
 import base.teacher.observationTree.ObservationTree;
 import base.teacher.oracle.*;
 import base.teacher.oracle.Convergence;
@@ -52,8 +53,14 @@ public class Teacher {
         parameters.put("maxTrie", maxTrie);
     }
 
-    public Triple<List<Boolean>, Map<TimedOutput, Integer>, Boolean> frequencyQuery(ResetTimedTrace prefix, TimedSuffixTrace suffix) {
+    public Answer query(ResetTimedTrace prefix, TimedSuffixTrace suffix) {
         return tree.outputFrequenciesAndCompleteness(prefix, suffix);
+    }
+
+    public FastImmPair<Map<TimedOutput, Integer>, Boolean> frequencyQuery(ResetTimedIncompleteTrace ts) {
+        Answer treeFrequenciesAndCompleteness =
+                tree.outputFrequenciesAndCompleteness(ts.convert().getSteps());
+        return FastImmPair.of(treeFrequenciesAndCompleteness.getFrequencies(), treeFrequenciesAndCompleteness.isComplete());
     }
 
     public Output getInitialOutput() {
