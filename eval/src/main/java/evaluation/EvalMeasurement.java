@@ -19,7 +19,9 @@ package evaluation;
 
 import utils.FastImmPair;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -49,6 +51,9 @@ public class EvalMeasurement {
 	
 	public void persist(String fileName) throws IOException{
 		List<String> lines = new ArrayList<>();
+		lines.add("************************************************: ");
+		lines.add("************************************************: ");
+		lines.add("************************************************: ");
 		lines.add("Measurement: " + typeOfMeasurement);
 		lines.add("SUL: " + sulName);
 		lines.add("************************************************: ");
@@ -59,8 +64,19 @@ public class EvalMeasurement {
 		}
 		for(EvalResult r : resultsForConfigs)
 			lines.addAll(r.export());
-		
-		Files.write(new File(fileName).toPath(), lines, Charset.defaultCharset());
+		File file = new File(fileName);
+		BufferedWriter bw = null;
+		try {
+			bw = new BufferedWriter(new FileWriter(file, true));
+			for (String line : lines) {
+				bw.write(line+"\n");
+			}
+			bw.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+//		Files.newBufferedWriter(new File(fileName).toPath(), Charset.defaultCharset()).
+//		Files.write(new File(fileName).toPath(), lines, Charset.defaultCharset());
 	}
 
 }

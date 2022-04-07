@@ -586,13 +586,15 @@ public class ClassificationTree implements Learner {
             if (!hypDist.isComplete()) {
                 incompleteTraces.add(new TimedIncompleteTrace(lv.getSequence().convert(), suffix));
             }
-            if (tarDist.isValid() != hypDist.isValid() || !hypDist.answerEqual(tarDist, compChecker)) {
+            if ((tarDist.isComplete() && hypDist.isComplete() && tarDist.isValid() != hypDist.isValid())
+                    || !hypDist.answerEqual(tarDist, compChecker)) {
                 SiftResult siftResult = sift(lu.getSequence().append(triple.getMiddle()));
                 if (siftResult.getLeafNode() != lv) {
                     InnerNode discriminator = (InnerNode) lowestCommonAncestor(lv, siftResult.getLeafNode());
                     tarDist = teacher.query(lu.getSequence().append(triple.getMiddle()), discriminator.getSequence());
                     hypDist = teacher.query(lv.getSequence(), discriminator.getSequence());
-                    if (tarDist.isValid() != hypDist.isValid() || !tarDist.answerEqual(hypDist, compChecker)) {
+                    if ((tarDist.isComplete() && hypDist.isComplete() && tarDist.isValid() != hypDist.isValid())
+                            || !tarDist.answerEqual(hypDist, compChecker)) {
                         return new ErrorIndexResult(lu, triple.getMiddle(), lv, suffix, ErrorEnum.RefineGuard);
                     }
                 } else {

@@ -18,13 +18,12 @@
 package evaluation;
 
 import evaluation.config.LearnerConfig;
-import evaluation.leaner_proxy.LearnerInstance;
+import evaluation.learner_proxy.LearnerInstance;
 import evaluation.prism.PrismInterface;
 import evaluation.prism.PrismModelExporter;
 import automaton.PTA;
 import importer.json.JsonSUL;
 import suls.LoggingSUL;
-import suls.SUL;
 import trace.ResetTimedTrace;
 import util.export.DotExporter;
 import utils.FastImmPair;
@@ -37,17 +36,24 @@ import java.util.*;
 
 public class Evaluator {
 
+	private long seed;
 	private LoggingSUL sul = null;
 	private PTA trueModel;
 	private List<LearnerConfig> learnConfigs = new ArrayList<>();
-	private String sulName;
+	private String groupName;
+	private int index;
 	private boolean outputTrueDotModel = false;
 	private SampleTest sampleTesting;
 	
-	public Evaluator(JsonSUL wrappedSUl, String trueSulName, long seed) throws Exception{
+	public Evaluator(long seed) {
+		this.seed = seed;
+	}
+
+	public void setSul(JsonSUL wrappedSUl, String groupName, int index) throws Exception {
 		sul = new LoggingSUL(wrappedSUl);
 		sul.init(seed);
-		sulName = trueSulName;
+		this.groupName = groupName;
+		this.index = index;
 		trueModel = wrappedSUl.getTargetModel();
 		sampleTesting = new SampleTest(trueModel);
 	}
@@ -68,7 +74,7 @@ public class Evaluator {
 			outputTrueModelAsDot(outputPath);
 		new File(outputPath).mkdirs();
 		List<ResetTimedTrace> allLoggedTraces = new ArrayList<>();
-		EvalMeasurement measurement = new EvalMeasurement("testing accuracy", sulName);
+		EvalMeasurement measurement = new EvalMeasurement("testing accuracy", groupName+"-"+index);
 		for(LearnerConfig config : learnConfigs){
 			config.setSampleTraces(allLoggedTraces);
 			LearnerInstance learner = config.instantiate();
@@ -90,8 +96,9 @@ public class Evaluator {
 			measurement.addResult(result);
 			allLoggedTraces.addAll(learner.loggedSampleTraces());
 		}
-		measurement.persist(outputPath + "/" + String.format("%s_results.log", sulName));
+		measurement.persist(outputPath + "/" + String.format("%s_results.log", groupName));
 		System.out.println("Experiment finished.");
+		learnConfigs.clear();
 	}
 
 	// use all if properties is empty
@@ -102,7 +109,7 @@ public class Evaluator {
 			outputTrueModelAsDot(outputPath);
 		new File(outputPath).mkdirs();
 		List<ResetTimedTrace> allLoggedTraces = new ArrayList<>();
-		EvalMeasurement measurement = new EvalMeasurement("property-probabilities", sulName);
+		EvalMeasurement measurement = new EvalMeasurement("property-probabilities", groupName+"-"+index);
 		computeOptimalProbalities(measurement,pathToPrism,truePrismFile, propertyFileName,properties);
 		for(LearnerConfig config : learnConfigs){
 			config.setSampleTraces(allLoggedTraces);
@@ -126,12 +133,12 @@ public class Evaluator {
 			measurement.addResult(result);
 			allLoggedTraces.addAll(learner.loggedSampleTraces());
 		}
-		measurement.persist(outputPath + "/" + String.format("%s_results.log", sulName));
+		measurement.persist(outputPath + "/" + String.format("%s_results.log", groupName));
 		System.out.println("Experiment finished.");
 	}
 
 	private void outputTrueModelAsDot(String outputPath) throws IOException {
-		exportDotFile(outputPath, String.format("%s_true_model", sulName), trueModel);
+		exportDotFile(outputPath, String.format("%s_true_model", groupName+"-"+index), trueModel);
 	}
 
 	private void computeOptimalProbalities(EvalMeasurement measurement, 

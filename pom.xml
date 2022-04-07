@@ -15,7 +15,7 @@
         <module>classification_tree</module>
         <module>observation_table</module>
         <module>base</module>
-        <module>learners</module>
+        <module>eval</module>
     </modules>
 
 

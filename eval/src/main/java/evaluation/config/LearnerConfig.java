@@ -17,10 +17,10 @@
  *******************************************************************************/
 package evaluation.config;
 
-import evaluation.leaner_proxy.LearnerInstance;
 import automaton.Output;
 import automaton.PTA;
 import base.teacher.oracle.ShortTraceToChaosGenerator;
+import evaluation.learner_proxy.LearnerInstance;
 import trace.ResetTimedTrace;
 import utils.FastImmPair;
 

@@ -26,15 +26,25 @@ public class EvalRandomModels {
 	public static void main(String args[]) throws Exception{
 		long seed = System.currentTimeMillis();
 		String trueSulFile = "eval/src/main/resources/randomModels";
-		String modelName = "4_4_3_20";
-		int index = 1;
-		JsonSUL trueSUL = JsonSUL.getPtaFromJsonFile(String.format("%s/%s-%d.json", trueSulFile, modelName, index));
-		trueSUL.init(seed);
+		String modelName = "4_4_3_10";
 
-		Evaluator evaluator = new Evaluator(trueSUL, modelName+"-"+index, seed);
-		evaluator.addConfig(RandomModelConfig.observationTable(seed, trueSUL, EqMode.PAC));
-		evaluator.addConfig(RandomModelConfig.classificationTree(seed, trueSUL, EqMode.PAC));
+		Evaluator evaluator = new Evaluator(seed);
+		for (int i = 1; i <= 10; i++) {
+			JsonSUL trueSUL = JsonSUL.getPtaFromJsonFile(String.format("%s/%s-%d.json", trueSulFile, modelName, i));
+			trueSUL.init(seed);
 
-		evaluator.evalTesting(20000, "results_only_testing/randomModels");
+			evaluator.setSul(trueSUL, modelName, i);
+			evaluator.addConfig(RandomModelConfig.observationTable(seed, trueSUL, EqMode.PAC));
+			evaluator.addConfig(RandomModelConfig.classificationTree(seed, trueSUL, EqMode.PAC));
+
+			evaluator.evalTesting(20000, "results_only_testing/randomModels");
+		}
+
+
+//		Evaluator evaluator = new Evaluator(trueSUL, modelName+"-"+index, seed);
+//		evaluator.addConfig(RandomModelConfig.observationTable(seed, trueSUL, EqMode.PAC));
+//		evaluator.addConfig(RandomModelConfig.classificationTree(seed, trueSUL, EqMode.PAC));
+//
+//		evaluator.evalTesting(20000, "results_only_testing/randomModels");
 	}
 }

@@ -19,7 +19,6 @@ package evaluation.config;
 
 import java.util.*;
 
-import evaluation.leaner_proxy.LearnerInstance;
 import automaton.Input;
 import base.Compatibility;
 import base.learner.Learner;
@@ -28,6 +27,7 @@ import base.teacher.Teacher;
 import base.teacher.oracle.EqMode;
 import base.teacher.oracle.OutputOracle;
 import base.teacher.oracle.conv.ConvergenceCriterion;
+import evaluation.learner_proxy.LearnerInstance;
 import observationTable.ObservationTable;
 import suls.LoggingSUL;
 import suls.SUL;

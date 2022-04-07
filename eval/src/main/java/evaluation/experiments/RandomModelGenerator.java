@@ -107,7 +107,7 @@ public class RandomModelGenerator {
             }
 
             String jsonStr = json.toString();
-            String filePath= "evaluation/src/main/resources/randomModels/" + pta + ".json";
+            String filePath= "eval/src/main/resources/randomModels/" + pta + ".json";
             try(PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(new File(filePath))))) {
                 writer.write(jsonStr);
             }catch (IOException e){
@@ -117,6 +117,6 @@ public class RandomModelGenerator {
     }
 
     public static void main(String[] args) {
-        RandomModelGenerator.generate(4, 4, 3, 20, 1);
+        RandomModelGenerator.generate(4, 4, 3, 10, 1);
     }
 }
