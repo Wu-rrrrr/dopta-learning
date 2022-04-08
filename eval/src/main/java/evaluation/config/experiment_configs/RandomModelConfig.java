@@ -14,7 +14,7 @@ public class RandomModelConfig {
     private static double epsilon = 0.01;
     private static double delta = 0.01;
     private static int maxTries = 1000;
-    private static double stopProbTest = 0.4;
+    private static double stopProbTest = 0.5;
     private static int bound = 21;
     private static double regionNormalization = 0.1;
 

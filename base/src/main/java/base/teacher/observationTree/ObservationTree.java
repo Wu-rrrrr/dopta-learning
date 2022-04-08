@@ -68,7 +68,7 @@ public class ObservationTree {
 		Answer result = outputFrequenciesAndCompleteness(incTrace.getSteps());
 		if (result.isValid()) {
 			List<Boolean> suffixResets = new ArrayList<>();
-			if (incTrace.length() > trace.length()) {
+			if (result.getResets().size() > trace.length()) {
 				suffixResets = result.getResets().subList(trace.length(), incTrace.length());
 			}
 			result.setResets(suffixResets);

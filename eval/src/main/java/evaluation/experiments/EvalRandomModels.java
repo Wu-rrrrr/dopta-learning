@@ -20,13 +20,15 @@ package evaluation.experiments;
 import evaluation.Evaluator;
 import evaluation.config.experiment_configs.RandomModelConfig;
 import base.teacher.oracle.EqMode;
+import evaluation.config.experiment_configs.RandomModelConfig44310;
+import evaluation.config.experiment_configs.RandomModelConfig44320;
 import importer.json.JsonSUL;
 
 public class EvalRandomModels {
 	public static void main(String args[]) throws Exception{
 		long seed = System.currentTimeMillis();
 		String trueSulFile = "eval/src/main/resources/randomModels";
-		String modelName = "4_4_3_10";
+		String modelName = "4_4_3_20";
 
 		Evaluator evaluator = new Evaluator(seed);
 		for (int i = 1; i <= 10; i++) {
@@ -34,8 +36,8 @@ public class EvalRandomModels {
 			trueSUL.init(seed);
 
 			evaluator.setSul(trueSUL, modelName, i);
-			evaluator.addConfig(RandomModelConfig.observationTable(seed, trueSUL, EqMode.PAC));
-			evaluator.addConfig(RandomModelConfig.classificationTree(seed, trueSUL, EqMode.PAC));
+			evaluator.addConfig(RandomModelConfig44320.observationTable(seed, trueSUL, EqMode.PAC));
+			evaluator.addConfig(RandomModelConfig44320.classificationTree(seed, trueSUL, EqMode.PAC));
 
 			evaluator.evalTesting(20000, "results_only_testing/randomModels");
 		}

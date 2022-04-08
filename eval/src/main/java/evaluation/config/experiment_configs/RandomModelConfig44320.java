@@ -13,12 +13,12 @@ public class RandomModelConfig44320 {
     private static double epsilon = 0.01;
     private static double delta = 0.01;
     private static int maxTries = 1000;
-    private static double stopProbTest = 0.5;
+    private static double stopProbTest = 0.2;
     private static int bound = 21;
     private static double regionNormalization = 0.1;
 
     public static LearnerConfig observationTable(long seed, SUL sul, EqMode mode) {
-        int batchSizeFill = 200;
+        int batchSizeFill = 600;
         return new ObservationTableConfig(seed, sul, new Compatibility(0.05, false, true),
                 sul.getInputs(), batchSizeFill,
                 new RoundBasedAndUnambigTraceCriterion(3, 200, 0.99),
@@ -27,7 +27,7 @@ public class RandomModelConfig44320 {
     }
 
     public static LearnerConfig classificationTree(long seed, SUL sul, EqMode mode) {
-        int batchSizeFill = 200;
+        int batchSizeFill = 600;
         return new ClassificationTreeConfig(seed, sul, new Compatibility(0.05, false, true),
                 sul.getInputs(), batchSizeFill,
                 new RoundBasedAndUnambigTraceCriterion(3, 200, 0.99),

@@ -13,7 +13,7 @@ public class RandomModelConfig44310 {
     private static double epsilon = 0.01;
     private static double delta = 0.01;
     private static int maxTries = 1000;
-    private static double stopProbTest = 0.5;
+    private static double stopProbTest = 0.25;
     private static int bound = 11;
     private static double regionNormalization = 0.1;
 

@@ -14,7 +14,7 @@ public class RandomModelGenerator {
     private static final int RESET = 3;
     private static final int TARGET = 4;
     private static final int PROBABILITY = 5;
-    private static final double[][] probabilityCombination= {{0.6, 0.4}, {0.3, 0.5, 0.2}, {0.1, 0.1, 0.8}, {0.7, 0.3}, {0.5, 0.5}};
+    private static final double[][] probabilityCombination= {{0.6, 0.4}, {0.5, 0.3, 0.2}, {0.2, 0.4, 0.4}, {0.7, 0.3}, {0.5, 0.5}};
 
     public static void generate(int locationNumber,int inputNumber, int nrLabel, int upperBound, int probabilityEdgeRatio){
         upperBound *= 2;
@@ -117,6 +117,6 @@ public class RandomModelGenerator {
     }
 
     public static void main(String[] args) {
-        RandomModelGenerator.generate(4, 4, 3, 10, 1);
+        RandomModelGenerator.generate(4, 4, 3, 20, 1);
     }
 }

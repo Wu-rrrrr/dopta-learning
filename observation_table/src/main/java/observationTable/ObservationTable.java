@@ -40,6 +40,7 @@ public class ObservationTable implements Learner {
     // new
     private Map<ResetTimedTrace, Set<TimedInput>> timeInputMap;
     private double unambiguousRows = 0;
+    private Set<TimedIncompleteTrace> consistentCheckIncomplete;
 
     public ObservationTable(Set<Input> inputs, Compatibility compChecker, Teacher teacher) {
         super();
@@ -259,6 +260,7 @@ public class ObservationTable implements Learner {
         }
         chaosLocation = Location.chaos(inputs);
         invalidLocation = Location.invalid(inputs);
+        consistentCheckIncomplete = new HashSet<>();
 
         List<TimedIncompleteTrace> initialTraces = new ArrayList<>();
         for (TimedSuffixTrace colTrace : Ecols)
@@ -325,7 +327,7 @@ public class ObservationTable implements Learner {
                     incompleteTraces.add(new TimedIncompleteTrace(longTrace.convert(), colTrace));
             }
         }
-
+        incompleteTraces.addAll(consistentCheckIncomplete);
         System.out.println("Incomplete traces: " + incompleteTraces.size());
         return incompleteTraces;
     }
@@ -537,6 +539,7 @@ public class ObservationTable implements Learner {
     }
 
     private Optional<TimedSuffixTrace> consistencyCheck() {
+        consistentCheckIncomplete = new HashSet<>();
         for (ResetTimedTrace s1 : Srows) {
             Row s1Row = shortRows.get(s1);
             for (ResetTimedTrace s2 : Srows) {
@@ -544,9 +547,17 @@ public class ObservationTable implements Learner {
                 if (s1 != s2) {
                     if (s1.lastOutput().equals(s2.lastOutput()) && s1Row.statRowEquivalence(s2Row, compChecker)) {
                         // 检查相同timed input下的frequencies是否compatible
-                        for (TimedInput timedInput : getAllSameInput(s1, s2)) {
+                        Set<TimedInput> timedInputs = new HashSet<>(timeInputMap.get(s1));
+                        timedInputs.addAll(timeInputMap.get(s2));
+                        for (TimedInput timedInput : timedInputs) {
                             Answer answer1 = teacher.query(s1, TimedSuffixTrace.empty(timedInput));
                             Answer answer2 = teacher.query(s2, TimedSuffixTrace.empty(timedInput));
+                            if (!answer1.isComplete() && !timeInputMap.get(s1).contains(timedInput)) {
+                                consistentCheckIncomplete.add(new TimedIncompleteTrace(s1.convert(), TimedSuffixTrace.empty(timedInput)));
+                            }
+                            if (!answer2.isComplete() && !timeInputMap.get(s2).contains(timedInput)) {
+                                consistentCheckIncomplete.add(new TimedIncompleteTrace(s2.convert(), TimedSuffixTrace.empty(timedInput)));
+                            }
                             if (!answer1.answerEqual(answer2, compChecker)) {
                                 return Optional.of(TimedSuffixTrace.empty(timedInput));
                             }
