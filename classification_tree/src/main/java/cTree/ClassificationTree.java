@@ -41,7 +41,7 @@ public class ClassificationTree implements Learner {
     private Set<TimedIncompleteTrace> incompleteTraces;
     private Set<ResetTimedIncompleteTrace> ctxes;
 
-    private double unambiguous;
+    private double unambiguousSift;
     private int nrUnambiguousBreakPointAnalysis;
 
     public ClassificationTree(Set<Input> inputs, Compatibility compChecker,Teacher teacher) {
@@ -57,7 +57,7 @@ public class ClassificationTree implements Learner {
         chaosLocation = Location.chaos(inputs);
         invalidLocation = Location.invalid(inputs);
         ctxes = new HashSet<>();
-        unambiguous = 1.0;
+        unambiguousSift = 1.0;
         nrUnambiguousBreakPointAnalysis = 0;
         cTreeInit(this.initOutput);
     }
@@ -110,6 +110,7 @@ public class ClassificationTree implements Learner {
         writeTreeToFile("hypotheses/tree_final.dot");
         if (setting.getRmlExp() != null)
             setting.getRmlExp().toFile(hypo, "hypotheses/hyp_final.prism");
+        setting.setNrEq(count);
         setting.setRounds(rounds);
         setting.setHypothesis(hypo);
     }
@@ -151,6 +152,18 @@ public class ClassificationTree implements Learner {
         int nrTrace = 0;
         int nrUnambiguousTraces = 0;
 
+        // 更新所有叶节点
+        Map<LeafNode, LeafNode> leafNodeMap = new HashMap<>();
+        for (LeafNode old : deleteAllLeaves()) {
+            SiftResult siftResult = sift(old.getSequence());
+            LeafNode latest = siftResult.getLeafNode();
+            leafNodeMap.put(old, latest);
+            if (siftResult.isUnambiguous()) {
+                nrUnambiguousTraces++;
+            }
+            nrTrace++;
+        }
+
         // ① 复制旧的叶节点迁移
         List<Track> oldTracks = new ArrayList<>(tracks);
         oldTracks.sort(new Comparator<Track>() {
@@ -172,27 +185,18 @@ public class ClassificationTree implements Learner {
         // ② 重置叶节点迁移集合
         tracks = new HashSet<>();
 
-        // 更新所有叶节点
-        Map<LeafNode, LeafNode> leafNodeMap = new HashMap<>();
-        for (LeafNode old : deleteAllLeaves()) {
-            SiftResult siftResult = sift(old.getSequence());
-            LeafNode latest = siftResult.getLeafNode();
-            leafNodeMap.put(old, latest);
-            if (siftResult.isUnambiguous()) {
-                nrUnambiguousTraces++;
-            }
-            nrTrace++;
-        }
-
         // ③ 重筛分所有叶节点迁移
         for (Track track : oldTracks) {
-            LeafNode source = leafNodeMap.get(track.getSource());
+            LeafNode source = track.getSource();
+            if (leafNodeMap.get(source) != null) {
+                source = leafNodeMap.get(source);
+            }
             FastImmPair<Integer, Integer> ratio = buildTrack(source, track.getInput());
             nrUnambiguousTraces += ratio.left;
             nrTrace += ratio.right;
         }
 
-        unambiguous = (double) nrUnambiguousTraces / nrTrace;
+        unambiguousSift = (double) nrUnambiguousTraces / nrTrace;
     }
 
     private List<LeafNode> deleteAllLeaves() {
@@ -345,13 +349,24 @@ public class ClassificationTree implements Learner {
     }
 
     private void addTrack (Track track) {
+        Track copied = null;
         for (Track t : tracks) {
             if (track.getSource().equals(t.getSource()) && track.getInput().equals(t.getInput()) && !track.equals(t)) {
-                System.out.printf("track repeat: %s, %s\n", track.getSource(), track.getInput());
-                Exception e = new Exception("track repeat");
-                e.printStackTrace();
-                System.exit(0);
+                copied = t;
+                break;
+//                System.out.printf("track repeat: %s, %s\n", track.getSource(), track.getInput());
+//                System.out.println(t);
+//                System.out.println(track);
+//                Exception e = new Exception("track repeat");
+//                e.printStackTrace();
+//                System.exit(0);
             }
+        }
+        if (copied != null) {
+//            System.out.printf("track repeat: %s, %s\n", track.getSource(), track.getInput());
+//            System.out.println(copied);
+//            System.out.println(track);
+            tracks.remove(copied);
         }
         tracks.add(track);
     }
@@ -570,6 +585,7 @@ public class ClassificationTree implements Learner {
 
     private ErrorIndexResult errorIndexAnalyse(ResetTimedIncompleteTrace ctx) {
 
+        boolean complete = true;
         for (int i = 0; i < ctx.length()-1; i++) {
             Triple<ResetTimedTrace, FastImmPair<TimedInput, TimedOutput>, ResetTimedSuffixTrace> triple = ctx.splitAt(i);
             ResetTimedTrace prefix = triple.getLeft();
@@ -581,14 +597,19 @@ public class ClassificationTree implements Learner {
             Answer tarDist = teacher.query(lu.getSequence().append(triple.getMiddle()), suffix);
             Answer hypDist = teacher.query(lv.getSequence(), suffix);
             if (!tarDist.isComplete()) {
+                complete = false;
                 incompleteTraces.add(new TimedIncompleteTrace(lu.getSequence().append(triple.getMiddle()).convert(), suffix));
             }
             if (!hypDist.isComplete()) {
+                complete = false;
                 incompleteTraces.add(new TimedIncompleteTrace(lv.getSequence().convert(), suffix));
             }
             if ((tarDist.isComplete() && hypDist.isComplete() && tarDist.isValid() != hypDist.isValid())
                     || !hypDist.answerEqual(tarDist, compChecker)) {
                 SiftResult siftResult = sift(lu.getSequence().append(triple.getMiddle()));
+                if (!siftResult.isUnambiguous()) {
+                    complete = false;
+                }
                 if (siftResult.getLeafNode() != lv) {
                     InnerNode discriminator = (InnerNode) lowestCommonAncestor(lv, siftResult.getLeafNode());
                     tarDist = teacher.query(lu.getSequence().append(triple.getMiddle()), discriminator.getSequence());
@@ -604,7 +625,9 @@ public class ClassificationTree implements Learner {
                 }
             }
         }
-        nrUnambiguousBreakPointAnalysis++;
+        if (complete) {
+            nrUnambiguousBreakPointAnalysis++;
+        }
         return null;
     }
 
@@ -632,7 +655,7 @@ public class ClassificationTree implements Learner {
     }
 
     public double portionOfUnambiguousRows() {
-        return unambiguous;
+        return unambiguousSift;
     }
 
 }

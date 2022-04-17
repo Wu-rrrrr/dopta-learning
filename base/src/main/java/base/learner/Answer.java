@@ -8,10 +8,7 @@ import org.apache.commons.lang3.tuple.Triple;
 import trace.TimedOutput;
 import utils.FastImmPair;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Data
 @NoArgsConstructor
@@ -34,11 +31,22 @@ public class Answer {
     }
 
     public boolean answerEqual(Answer other, Compatibility compChecker) {
-        if (!isValid() || !other.isValid()) {
-            return true;
+//        if (!isValid() || !other.isValid()) {
+//            return true;
+//        }
+        Set<TimedOutput> keys = new HashSet<>();
+        keys.addAll(frequencies.keySet());
+        keys.addAll(other.getFrequencies().keySet());
+        boolean differentKeySize = isComplete() ? keys.size() != frequencies.size()
+                : (other.isComplete() && keys.size() != other.frequencies.size());
+        if (differentKeySize) {
+            return false;
         }
         if (!isComplete() || !other.isComplete()) {
             return true;
+        }
+        if (isValid() != other.isValid()) {
+            return false;
         }
         if (!resets.equals(other.resets))
             return false;

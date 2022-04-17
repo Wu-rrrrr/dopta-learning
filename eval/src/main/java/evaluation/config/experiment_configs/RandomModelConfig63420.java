@@ -8,7 +8,7 @@ import evaluation.config.LearnerConfig;
 import evaluation.config.ObservationTableConfig;
 import suls.SUL;
 
-public class RandomModelConfig72720 {
+public class RandomModelConfig63420 {
     private static double unambiguousThreshold = 1;
     private static double epsilon = 0.01;
     private static double delta = 0.01;
@@ -18,8 +18,8 @@ public class RandomModelConfig72720 {
     private static double regionNormalization = 0.1;
 
     public static LearnerConfig observationTable(long seed, SUL sul, EqMode mode) {
-        int batchSizeFill = 200;
-        return new ObservationTableConfig(seed, sul, new Compatibility(0.05, false, true),
+        int batchSizeFill = 5000;
+        return new ObservationTableConfig(seed, sul, new Compatibility(0.001, false, true),
                 sul.getInputs(), batchSizeFill,
                 new RoundBasedAndUnambigTraceCriterion(3, 200, 0.99),
                 unambiguousThreshold, epsilon, delta, maxTries,
@@ -27,8 +27,8 @@ public class RandomModelConfig72720 {
     }
 
     public static LearnerConfig classificationTree(long seed, SUL sul, EqMode mode) {
-        int batchSizeFill = 200;
-        return new ClassificationTreeConfig(seed, sul, new Compatibility(0.05, false, true),
+        int batchSizeFill = 5000;
+        return new ClassificationTreeConfig(seed, sul, new Compatibility(0.001, false, true),
                 sul.getInputs(), batchSizeFill,
                 new RoundBasedAndUnambigTraceCriterion(3, 200, 0.99),
                 unambiguousThreshold, epsilon, delta, maxTries,

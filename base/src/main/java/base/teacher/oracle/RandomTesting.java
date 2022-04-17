@@ -56,6 +56,12 @@ public class RandomTesting {
 	private boolean stopAtCex = true;
 	private List<ResetTimedTrace> sampledTraces;
 
+	private int uninterestingSamplesThreshold = 10;
+	private Output uninterestingOutput = Output.sink();
+	private int maxLength = 10;
+
+	private List<ResetTimedTrace> candidates;
+
 	/**
 	 * Constructor 
 	 *
@@ -92,36 +98,50 @@ public class RandomTesting {
 
 	private Optional<ResetTimedTrace> searchForDiscriminatingTest(PTA hypo) {
 		Optional<ResetTimedTrace> discriminatingTest = Optional.empty();
+		int partition = nrTest / 10;
+
+		candidates = new ArrayList<>();
+		candidates.add(ResetTimedTrace.empty(Output.create(sul.reset())));
+		// random walking
 		for (int tries = 0; tries < nrTest; tries++) {
-			FastImmPair<ResetTimedTrace, Boolean> potentiallyDiscriminating = findDiscriminatingTestSingle(hypo);
+			FastImmPair<ResetTimedTrace, Boolean> potentiallyDiscriminating = findDiscriminatingTestSingle(hypo, tries < partition);
+			if (!potentiallyDiscriminating.left.lastOutput().equals(uninterestingOutput) && !candidates.contains(potentiallyDiscriminating.left)) {
+				candidates.add(potentiallyDiscriminating.left);
+			}
 			tree.addObservationTrace(potentiallyDiscriminating.getLeft());
 			sampledTraces.add(potentiallyDiscriminating.left);
 			boolean isDiscriminating = potentiallyDiscriminating.getRight();
-			if (isDiscriminating && discriminatingTest.isEmpty()){
+			if (isDiscriminating){
 				System.out.println("We have a discriminating test after " + (tries +1) + " tries: ");
 				discriminatingTest = Optional.of(potentiallyDiscriminating.getLeft());
-				if(stopAtCex)
-					break;
+				return discriminatingTest;
 			}
 		}
 		return discriminatingTest;
 	}
 
-	private FastImmPair<ResetTimedTrace, Boolean> findDiscriminatingTestSingle(PTA hypo) {
-		Location currentHypState = hypo.getInitial();
-		TimedOutput sulOutput = TimedOutput.createInit(sul.reset());
-		ResetTimedTrace currenTrace = ResetTimedTrace.empty(sulOutput.getOutput());
-		double currentLogicalTime = 0.0;
-		// Set<OutputSymbol> hypOutput =
-		// currentHypState.stream().map(State::getLabel).collect(Collectors.toSet());
-//		List<Input> inputsExecuted = new ArrayList<>();
-		do {
-			TimedInput delayTimedInput = chooseRandomInput(currentLogicalTime);
-			FastImmPair<Boolean, String> output = sul.execute(delayTimedInput.getInput().getSymbol(), delayTimedInput.getClockVal());
-			if (output == null)
-				return FastImmPair.of(currenTrace, false);
-			TimedOutput nextSulOutput = TimedOutput.create(output);
+	private FastImmPair<ResetTimedTrace, Boolean> findDiscriminatingTestSingle(PTA hypo, boolean randomSample) {
+		ResetTimedTrace selectedTrace = candidates.get(random.nextInt(candidates.size()));
+		int minSampleSize = randomSample ? 1 : selectedTrace.length();
 
+		Location currentHypState = hypo.getInitial();
+		ResetTimedTrace currenTrace = ResetTimedTrace.empty(Output.create(sul.reset()));
+		double currentLogicalTime = 0.0;
+		int tries = 1;
+		do {
+			TimedInput delayTimedInput;
+			if (randomSample || currenTrace.length() >= selectedTrace.length()) {
+				delayTimedInput = chooseRandomInput(currentLogicalTime);
+			} else {
+				TimedInput selectedLogicalTimedInput = selectedTrace.getIthInput(currenTrace.length());
+				delayTimedInput = TimedInput.create(selectedLogicalTimedInput.getInput().getSymbol(), selectedLogicalTimedInput.getClockVal() - currentLogicalTime);
+			}
+			FastImmPair<Boolean, String> sulOutput = sul.execute(delayTimedInput.getInput().getSymbol(), delayTimedInput.getClockVal());
+			if (sulOutput == null) {
+				throw new Error(String.format("sul output error, trace: %s,delay timed action: %s",currenTrace,delayTimedInput));
+			}
+
+			TimedOutput nextSulOutput = TimedOutput.create(sulOutput);
 			TimedInput logicalTimedInput = delayTimedInput.convertLogicalTime(currentLogicalTime);
 			if (logicalTimedInput.getClockVal() > bound) {
 				throw new Error("delay time selected incorrect");
@@ -135,18 +155,29 @@ public class RandomTesting {
 					else
 						return FastImmPair.of(currenTrace, false);
 				else{
-//					System.out.println("Hyp outputs: " + currentHypState.getTransitions().get(input).stream()
-//							.map(t -> t.getTarget().getLabel().toString()).collect(Collectors.joining(",")));
 					if(!stopAtCex)
 						return FastImmPair.of(extendedRandom(currenTrace), true);
 					else
 						return FastImmPair.of(currenTrace, true);
 				}
 			}
+			// inconsistent with selected trace
+			if (!randomSample && (currenTrace.length() >= selectedTrace.length() || !nextSulOutput.equals(selectedTrace.get(currenTrace.length()-2).right))) {
+				randomSample = true;
+				minSampleSize = currenTrace.length();
+			}
 
 			currentLogicalTime = nextSulOutput.isReset() ? 0.0 : logicalTimedInput.getClockVal();
 			currentHypState = nextHypState.get();
-		} while (!currentHypState.getLabel().equals(Output.sink()) && random.nextDouble() >= stopProb);
+			// 设置参数控制不感兴趣的采样
+			if (currentHypState.getLabel().equals(uninterestingOutput) && tries < uninterestingSamplesThreshold) {
+				tree.addObservationTrace(currenTrace);
+				tries++;
+				currenTrace = ResetTimedTrace.empty(Output.create(sul.reset()));
+				currentHypState = hypo.getInitial();
+				currentLogicalTime = 0.0;
+			}
+		} while (!currentHypState.getLabel().equals(uninterestingOutput) && (random.nextDouble() < stopProb || currenTrace.length() <= minSampleSize));
 		return FastImmPair.of(currenTrace, false);
 	}
 

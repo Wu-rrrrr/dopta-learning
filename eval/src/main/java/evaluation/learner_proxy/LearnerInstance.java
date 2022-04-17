@@ -39,4 +39,5 @@ public abstract class LearnerInstance {
 	public int getNrRounds() {
 		return setting.getRounds();
 	}
+	public int getNrEq() {return setting.getNrEq();}
 }

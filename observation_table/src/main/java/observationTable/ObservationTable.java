@@ -199,23 +199,35 @@ public class ObservationTable implements Learner {
         int nrComplete1 = 0;
         int nrComplete2 = 0;
 
-        Set<TimedInput> timedInputs = new HashSet<>(timeInputMap.get(t1));
-        timedInputs.addAll(timeInputMap.get(t2));
-
-        for (TimedInput timedInput : timedInputs) {
+        for (TimedInput timedInput : timeInputMap.get(t1)) {
             TimedSuffixTrace Etrace = TimedSuffixTrace.empty(timedInput);
-            Answer answer1 = teacher.query(t1, Etrace);
-            Answer answer2 = teacher.query(t2, Etrace);
-
-//            if (answer1.isComplete() && !answer1.getFrequencies().isEmpty())
-//                nrComplete1++;
-//            if (answer2.isComplete() && !answer2.getFrequencies().isEmpty())
-//                nrComplete2++;
-            for (Integer outputCount : answer1.getFrequencies().values())
+            Answer answer = teacher.query(t1, Etrace);
+            for (Integer outputCount : answer.getFrequencies().values())
                 nrEntries1 += outputCount;
-            for (Integer outputCount : answer2.getFrequencies().values())
+        }
+        for (TimedInput timedInput : timeInputMap.get(t2)) {
+            TimedSuffixTrace Etrace = TimedSuffixTrace.empty(timedInput);
+            Answer answer = teacher.query(t2, Etrace);
+            for (Integer outputCount : answer.getFrequencies().values())
                 nrEntries2 += outputCount;
         }
+//        Set<TimedInput> timedInputs = new HashSet<>(timeInputMap.get(t1));
+//        timedInputs.addAll(timeInputMap.get(t2));
+//
+//        for (TimedInput timedInput : timedInputs) {
+//            TimedSuffixTrace Etrace = TimedSuffixTrace.empty(timedInput);
+//            Answer answer1 = teacher.query(t1, Etrace);
+//            Answer answer2 = teacher.query(t2, Etrace);
+//
+////            if (answer1.isComplete() && !answer1.getFrequencies().isEmpty())
+////                nrComplete1++;
+////            if (answer2.isComplete() && !answer2.getFrequencies().isEmpty())
+////                nrComplete2++;
+//            for (Integer outputCount : answer1.getFrequencies().values())
+//                nrEntries1 += outputCount;
+//            for (Integer outputCount : answer2.getFrequencies().values())
+//                nrEntries2 += outputCount;
+//        }
 //        int completenessCompare = -Integer.compare(nrComplete1, nrComplete2);
 //        if (completenessCompare != 0)
 //            return completenessCompare;
@@ -419,6 +431,7 @@ public class ObservationTable implements Learner {
         writeTableToFile("hypotheses/table_final.csv");
         if (setting.getRmlExp() != null)
             setting.getRmlExp().toFile(hypo, "hypotheses/hyp_final.prism");
+        setting.setNrEq(count);
         setting.setRounds(rounds);
         setting.setHypothesis(hypo);
     }
@@ -547,17 +560,18 @@ public class ObservationTable implements Learner {
                 if (s1 != s2) {
                     if (s1.lastOutput().equals(s2.lastOutput()) && s1Row.statRowEquivalence(s2Row, compChecker)) {
                         // 检查相同timed input下的frequencies是否compatible
-                        Set<TimedInput> timedInputs = new HashSet<>(timeInputMap.get(s1));
-                        timedInputs.addAll(timeInputMap.get(s2));
+//                        Set<TimedInput> timedInputs = new HashSet<>(timeInputMap.get(s1));
+//                        timedInputs.addAll(timeInputMap.get(s2));
+                        Set<TimedInput> timedInputs = getAllSameInput(s1, s2);
                         for (TimedInput timedInput : timedInputs) {
                             Answer answer1 = teacher.query(s1, TimedSuffixTrace.empty(timedInput));
                             Answer answer2 = teacher.query(s2, TimedSuffixTrace.empty(timedInput));
-                            if (!answer1.isComplete() && !timeInputMap.get(s1).contains(timedInput)) {
-                                consistentCheckIncomplete.add(new TimedIncompleteTrace(s1.convert(), TimedSuffixTrace.empty(timedInput)));
-                            }
-                            if (!answer2.isComplete() && !timeInputMap.get(s2).contains(timedInput)) {
-                                consistentCheckIncomplete.add(new TimedIncompleteTrace(s2.convert(), TimedSuffixTrace.empty(timedInput)));
-                            }
+//                            if (!answer1.isComplete() && !timeInputMap.get(s1).contains(timedInput)) {
+//                                consistentCheckIncomplete.add(new TimedIncompleteTrace(s1.convert(), TimedSuffixTrace.empty(timedInput)));
+//                            }
+//                            if (!answer2.isComplete() && !timeInputMap.get(s2).contains(timedInput)) {
+//                                consistentCheckIncomplete.add(new TimedIncompleteTrace(s2.convert(), TimedSuffixTrace.empty(timedInput)));
+//                            }
                             if (!answer1.answerEqual(answer2, compChecker)) {
                                 return Optional.of(TimedSuffixTrace.empty(timedInput));
                             }

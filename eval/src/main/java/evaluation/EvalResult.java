@@ -37,6 +37,7 @@ public class EvalResult {
 	private long nrSteps;
 	private long nrTests;
 	private int nrRounds;
+	private int nrEq;
 	private double passRatio;
 	private double klDivergence;
 	
@@ -61,6 +62,7 @@ public class EvalResult {
 		exportedLines.add("# outputs: " + nrSteps);
 		exportedLines.add("# tests: " + nrTests);
 		exportedLines.add("# rounds: " + nrRounds);
+		exportedLines.add("# equivalence queries: " + nrEq);
 		exportedLines.add("test case passing ratio: " + passRatio);
 		exportedLines.add("the sum of KL Divergence: " + klDivergence);
 		
@@ -99,6 +101,7 @@ public class EvalResult {
 	public void setNrRounds(int nrRounds) {
 		this.nrRounds = nrRounds;
 	}
+	public void setNrEq(int nrEq) {this.nrEq = nrEq;}
 	public double getPassRatio() {
 		return passRatio;
 	}

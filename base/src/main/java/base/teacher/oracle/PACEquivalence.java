@@ -76,6 +76,7 @@ public class PACEquivalence extends EquivalenceOracle {
                 Map<TimedOutput, Integer> hypFreq = getHypoFrequencies(hypo, incompleteTrace);
                 if (!compatibilityChecker.compatible(treeFreq, hypFreq)) {
                     System.out.println(Optional.of(incompleteTrace));
+                    System.out.printf("true freq: %s, hypothesis freq: %s\n", treeFreq, hypFreq);
                     return FastImmPair.of(false, incompleteTrace);
                 }
             }

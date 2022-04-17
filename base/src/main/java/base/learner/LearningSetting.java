@@ -12,6 +12,7 @@ public class LearningSetting {
     private RMLExporter rmlExp = null;
     private int printFrequency = 50;
 
+    private int nrEq;
     private int rounds;
     private PTA hypothesis;
 

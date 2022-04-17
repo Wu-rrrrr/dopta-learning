@@ -38,7 +38,7 @@ public class ObservationTree {
 	private Set<Input> inputs = null;
 	private Node root = null;
 	// TODO make nice
-	public static int completenessThreshold = 150;
+	public static int completenessThreshold = 50;
 	public Set<Input> getInputs() { return inputs;}
 	public ObservationTree(Set<Input> inputs){
 		setRoot(new Node());

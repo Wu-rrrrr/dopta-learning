@@ -90,6 +90,7 @@ public class Evaluator {
 			result.setNrSteps(learner.getNrSteps());
 			result.setNrTests(learner.getNrTests());
 			result.setNrRounds(learner.getNrRounds());
+			result.setNrEq(learner.getNrEq());
 			result.setPassRatio(sampleTesting.getPassRatio());
 			result.setKlDivergence(sampleTesting.getKlDivergence());
 
