@@ -30,6 +30,11 @@ public interface Learner {
     //获取最终结果自动机
     PTA getFinalHypothesis();
 
+    //获取精确结果自动机
+    PTA getExactHypothesis();
+
+    Compatibility getCompChecker();
+
     default void constructTransitions (Location chaosLocation, Location invalidLocation, Compatibility compChecker, Location source,
                                        Map<Input, List<Double>> chaosClockValuations,
                                        Map<Input, List<Double>> invalidClockValuations,
@@ -114,6 +119,61 @@ public interface Learner {
 
         Map<Frequencies<Edge>, Guard> distributionGuardMap = new HashMap<>();
         for (Map.Entry<Frequencies<Edge>, List<Interval>> entry :
+                distributionInterviewsMap.entrySet()) {
+            List<Interval> tmpInterviews = entry.getValue();
+            tmpInterviews.sort(new Comparator<Interval>() {
+                @Override
+                public int compare(Interval o1, Interval o2) {
+                    int leftComp = Double.compare(o1.lowerEndpoint(), o2.lowerEndpoint());
+                    if (leftComp != 0) {
+                        return leftComp;
+                    } else {
+                        if (o1.lowerBoundType() == BoundType.OPEN) {
+                            return 1;
+                        }
+                        return 0;
+                    }
+                }
+            });
+
+            Guard guard = Guard.create();
+            int index = 0;
+            while (index < tmpInterviews.size()) {
+                Interval interval = tmpInterviews.get(index++);
+                for (; index < tmpInterviews.size() && interval.isConnected(tmpInterviews.get(index)); index++) {
+                    interval = interval.span(tmpInterviews.get(index));
+                }
+                guard.putInterval(interval);
+            }
+            distributionGuardMap.put(entry.getKey(), guard);
+        }
+
+        return distributionGuardMap;
+    }
+
+    default Map<Map<Edge, Double>, Guard> getExactDistributionGuardRelation(Map<Double, Map<Edge, Double>> representDistribution) {
+        Map<Map<Edge, Double>, List<Interval>> distributionInterviewsMap = new HashMap<>();
+        List<Double> clockValuations = new ArrayList<>(representDistribution.keySet());
+        clockValuations.sort(new Comparator<Double>() {
+            @Override
+            public int compare(Double o1, Double o2) {
+                return Double.compare(o1, o2);
+            }
+        });
+        for (int i = 0; i < clockValuations.size(); i++) {
+            Map<Edge, Double> distribution = representDistribution.get(clockValuations.get(i));
+            Interval interval;
+            if (i+1 < clockValuations.size()) {
+                interval = Interval.create(clockValuations.get(i), clockValuations.get(i+1));
+            } else {
+                interval = Interval.create(clockValuations.get(i));
+            }
+            distributionInterviewsMap.putIfAbsent(distribution, new ArrayList<>());
+            distributionInterviewsMap.get(distribution).add(interval);
+        }
+
+        Map<Map<Edge, Double>, Guard> distributionGuardMap = new HashMap<>();
+        for (Map.Entry<Map<Edge, Double>, List<Interval>> entry :
                 distributionInterviewsMap.entrySet()) {
             List<Interval> tmpInterviews = entry.getValue();
             tmpInterviews.sort(new Comparator<Interval>() {

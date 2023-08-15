@@ -18,6 +18,8 @@
 package suls;
 
 import automaton.Input;
+import automaton.OutputDistribution;
+import trace.TimedIncompleteTrace;
 import trace.TimedInput;
 import utils.FastImmPair;
 
@@ -68,6 +70,11 @@ public class StepTrackingSUL implements SUL {
 	}
 	public int getSteps() {
 		return steps;
+	}
+
+	@Override
+	public OutputDistribution execute(TimedIncompleteTrace logicalTimedTestSeq) {
+		return wrappedSUL.execute(logicalTimedTestSeq);
 	}
 
 }

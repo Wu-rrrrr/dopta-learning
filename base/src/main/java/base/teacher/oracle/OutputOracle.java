@@ -18,6 +18,7 @@
 package base.teacher.oracle;
 
 import automaton.Output;
+import automaton.OutputDistribution;
 import suls.SUL;
 import trace.*;
 import utils.FastImmPair;
@@ -26,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
-import java.util.stream.Collectors;
 
 /**
  * This class implements most of the functionality of refine queries including the 
@@ -49,6 +49,22 @@ public class OutputOracle {
 		this.random = random;
 		this.sul = sul;
 		this.batchSize = batchSize;
+	}
+
+	public OutputDistribution outputDistributionQuery(ResetTimedTrace trace, TimedSuffixTrace suffix) {
+		TimedIncompleteTrace logicalTimedTestSeq = new TimedIncompleteTrace(trace.convert(), suffix);
+		OutputDistribution outputDistribution = sul.execute(logicalTimedTestSeq);
+		List<Boolean> resets = outputDistribution.getResets();
+		if (!resets.isEmpty()) {
+			for (int i = 0; i < trace.length() - 1; i++) {
+				resets.remove(0);
+			}
+		}
+
+//		if (outputDistribution.getDistribution() == null) {
+//			System.out.println(trace.toString() + suffix);
+//		}
+		return outputDistribution;
 	}
 	public List<ResetTimedTrace> performQueries(List<TimedIncompleteTrace> traces) {
 		List<ResetTimedTrace> queryResults = new ArrayList<>();
@@ -93,7 +109,8 @@ public class OutputOracle {
 				else
 					chosenTrace = newChosenTrace;
 			}
-			FastImmPair<Boolean, String> output = sul.execute(currentStep.getRight().getInput().getSymbol(), currentStep.right.getClockVal()-currentLogicalTime);
+			FastImmPair<Boolean, String> output = sul.execute(currentStep.getRight().getInput().getSymbol(),
+					currentStep.right.getClockVal()-currentLogicalTime);
 			if (output == null)
 				return resultTrace;
 			sulOutput = Output.create(output.right);

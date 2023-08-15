@@ -2,6 +2,7 @@ package base.teacher;
 
 import automaton.Input;
 import automaton.Output;
+import automaton.OutputDistribution;
 import automaton.PTA;
 import base.Compatibility;
 import base.learner.Answer;
@@ -9,7 +10,6 @@ import base.teacher.observationTree.ObservationTree;
 import base.teacher.oracle.*;
 import base.teacher.oracle.Convergence;
 import base.teacher.oracle.conv.ConvergenceCriterion;
-import org.apache.commons.lang3.tuple.Triple;
 import suls.SUL;
 import trace.*;
 import utils.FastImmPair;
@@ -74,5 +74,9 @@ public class Teacher {
 
     public FastImmPair<Boolean, ResetTimedIncompleteTrace> equivalenceQuery(int rounds, PTA hypothesis, double unambiguousRatio) {
         return equivalenceOracle.findCex(rounds, hypothesis, unambiguousRatio);
+    }
+
+    public OutputDistribution outputDistributionQuery(ResetTimedTrace trace, TimedSuffixTrace suffix) {
+        return outputOracle.outputDistributionQuery(trace, suffix);
     }
 }

@@ -93,12 +93,12 @@ public class ClassificationTreeConfig implements LearnerConfig{
 
             @Override
             public long getNrSteps() {
-                return sul.getTraces().stream().mapToLong(Trace::length).sum();
+                return sul.getNrTests();
             }
 
             @Override
             public long getNrTests() {
-                return sul.getTraces().size();
+                return sul.getNrSample();
             }
         };
     }
@@ -115,7 +115,7 @@ public class ClassificationTreeConfig implements LearnerConfig{
 
     @Override
     public String description() {
-        return "Classification Tree for PTAs" + (compChecker.isAdaptive() ? "(adapt.)" :"");
+        return "tree" + (compChecker.isAdaptive() ? "(adapt.)" :"");
     }
 
     @Override

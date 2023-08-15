@@ -19,6 +19,7 @@ package evaluation.learner_proxy;
 
 import java.util.List;
 import automaton.PTA;
+import base.Compatibility;
 import base.learner.Learner;
 import base.learner.LearningSetting;
 import lombok.AllArgsConstructor;
@@ -40,4 +41,7 @@ public abstract class LearnerInstance {
 		return setting.getRounds();
 	}
 	public int getNrEq() {return setting.getNrEq();}
+	public long getLearningTime() {return setting.getTime(); }
+	public PTA getExactHypo() {return learner.getExactHypothesis();}
+	public Compatibility getCompChecker() {return learner.getCompChecker();}
 }

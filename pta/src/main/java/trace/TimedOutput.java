@@ -23,7 +23,27 @@ public class TimedOutput {
         return new TimedOutput(true, Output.create(init));
     }
 
+    @Override
     public String toString() {
         return String.format("(%b,%s)", reset, output.toString());
     }
+
+//    @Override
+//    public boolean equals(Object obj) {
+//        if (this == obj)
+//            return true;
+//        if (obj == null)
+//            return false;
+////        if(hashCode() != obj.hashCode())
+////            return false;
+//        if (getClass() != obj.getClass())
+//            return false;
+//        TimedOutput other = (TimedOutput) obj;
+//        if (reset ^ other.reset) {
+//            return false;
+//        }
+//        if (output == null) {
+//            return other.output == null;
+//        } else return output.equals(other.output);
+//    }
 }

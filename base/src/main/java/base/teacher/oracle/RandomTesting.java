@@ -56,9 +56,8 @@ public class RandomTesting {
 	private boolean stopAtCex = true;
 	private List<ResetTimedTrace> sampledTraces;
 
-	private int uninterestingSamplesThreshold = 10;
+	private int uninterestingSamplesThreshold = 100;
 	private Output uninterestingOutput = Output.sink();
-	private int maxLength = 10;
 
 	private List<ResetTimedTrace> candidates;
 
@@ -98,14 +97,14 @@ public class RandomTesting {
 
 	private Optional<ResetTimedTrace> searchForDiscriminatingTest(PTA hypo) {
 		Optional<ResetTimedTrace> discriminatingTest = Optional.empty();
-		int partition = nrTest / 10;
+		int partition = nrTest / 2;
 
 		candidates = new ArrayList<>();
 		candidates.add(ResetTimedTrace.empty(Output.create(sul.reset())));
 		// random walking
 		for (int tries = 0; tries < nrTest; tries++) {
 			FastImmPair<ResetTimedTrace, Boolean> potentiallyDiscriminating = findDiscriminatingTestSingle(hypo, tries < partition);
-			if (!potentiallyDiscriminating.left.lastOutput().equals(uninterestingOutput) && !candidates.contains(potentiallyDiscriminating.left)) {
+			if (!potentiallyDiscriminating.left.lastOutput().equals(uninterestingOutput)) {
 				candidates.add(potentiallyDiscriminating.left);
 			}
 			tree.addObservationTrace(potentiallyDiscriminating.getLeft());
@@ -155,11 +154,13 @@ public class RandomTesting {
 					else
 						return FastImmPair.of(currenTrace, false);
 				else{
-					if(!stopAtCex)
-						return FastImmPair.of(extendedRandom(currenTrace), true);
-					else
+//						while (executeHyp(currentHypState, logicalTimedInput, nextSulOutput).isEmpty()) {
+//							executeTraceOnSUL(currenTrace);
+//							double nextRegion = logicalTimedInput.getClockVal() -
+//						}
+
 						return FastImmPair.of(currenTrace, true);
-				}
+					}
 			}
 			// inconsistent with selected trace
 			if (!randomSample && (currenTrace.length() >= selectedTrace.length() || !nextSulOutput.equals(selectedTrace.get(currenTrace.length()-2).right))) {
@@ -179,6 +180,34 @@ public class RandomTesting {
 			}
 		} while (!currentHypState.getLabel().equals(uninterestingOutput) && (random.nextDouble() < stopProb || currenTrace.length() <= minSampleSize));
 		return FastImmPair.of(currenTrace, false);
+	}
+
+	private void executeTraceOnSUL(ResetTimedTrace trace) {
+		boolean flag = true;
+		while (flag) {
+			double clockVal = 0;
+			sul.reset();
+			if (trace.length() == 1) {
+				return;
+			}
+			List<FastImmPair<TimedInput, TimedOutput>> steps = trace.getTrace();
+			int length = steps.size();
+			for (FastImmPair<TimedInput, TimedOutput> step :
+					steps) {
+				TimedInput delayTimedInput = new TimedInput(step.left.getInput(), step.left.getClockVal() - clockVal);
+				FastImmPair<Boolean, String> sulOutput = sul.execute(delayTimedInput.getInput().getSymbol(), delayTimedInput.getClockVal());
+				if (step.right.isReset() == sulOutput.getLeft() && step.right.getOutput().getSymbol().equals(sulOutput.right)) {
+					break;
+				}
+				if (sulOutput.left) {
+					clockVal = 0;
+				} else {
+					clockVal = step.left.getClockVal();
+				}
+				length--;
+			}
+			flag = length > 0;
+		}
 	}
 
 	private ResetTimedTrace extendedRandom(ResetTimedTrace currenTrace) {

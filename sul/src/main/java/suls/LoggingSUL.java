@@ -19,10 +19,8 @@ package suls;
 
 import automaton.Input;
 import automaton.Output;
-import trace.ResetTimedTrace;
-import trace.TimedInput;
-import trace.TimedOutput;
-import trace.TimedTrace;
+import automaton.OutputDistribution;
+import trace.*;
 import trace.base.Trace;
 import utils.FastImmPair;
 
@@ -40,6 +38,8 @@ import java.util.Set;
 public class LoggingSUL implements SUL {
 
 	private List<ResetTimedTrace> traces = new ArrayList<>();
+	private int nrSample = 0;
+	private int nrTests = 0;
 	private ResetTimedTrace currentTrace = null;
 	private SUL wrappedSUL = null;
 	
@@ -47,7 +47,7 @@ public class LoggingSUL implements SUL {
 		super();
 		this.wrappedSUL = wrappedSUL;
 	}
-	private boolean log = true;
+	private boolean log = false;
 	
 	public void disableLogging(){
 		if(log){
@@ -75,6 +75,7 @@ public class LoggingSUL implements SUL {
 			}
 			currentTrace = ResetTimedTrace.empty(new Output(initialOutput));
 		}
+		nrSample++;
 		return initialOutput;
 	}
 
@@ -86,6 +87,7 @@ public class LoggingSUL implements SUL {
 				currentTrace = (ResetTimedTrace) currentTrace.append(FastImmPair.of(TimedInput.create(input, clockVal), TimedOutput.create(timedOutput)));
 			}
 		}
+		nrTests++;
 		return timedOutput;
 	}
 
@@ -102,6 +104,22 @@ public class LoggingSUL implements SUL {
 	
 	public void clearTraces(){
 		traces.clear();
+	}
+
+	public int getNrSample() {
+		return nrSample;
+	}
+	public int getNrTests() {
+		return nrTests;
+	}
+
+	@Override
+	public OutputDistribution execute(TimedIncompleteTrace logicalTimedTestSeq) {
+//		OutputDistribution od = wrappedSUL.execute(logicalTimedTestSeq);
+//		if (od.getDistribution() == null) {
+//			System.out.println(logicalTimedTestSeq);
+//		}
+		return wrappedSUL.execute(logicalTimedTestSeq);
 	}
 
 }

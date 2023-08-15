@@ -18,6 +18,8 @@
 package suls;
 
 import automaton.Input;
+import automaton.OutputDistribution;
+import trace.TimedIncompleteTrace;
 import utils.FastImmPair;
 
 import java.util.Set;
@@ -66,5 +68,7 @@ public interface SUL {
 	 * @return alphabet of the SUL
 	 */
 	public abstract Set<Input> getInputs();
+
+	public abstract OutputDistribution execute(TimedIncompleteTrace logicalTimedTestSeq);
 
 }

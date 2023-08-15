@@ -4,17 +4,19 @@ import automaton.Input;
 import automaton.Location;
 import automaton.Output;
 import automaton.Transition;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.google.common.collect.BoundType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import trace.ResetTimedTrace;
-import trace.TimedInput;
-import trace.TimedOutput;
-import trace.TimedTrace;
+import netscape.javascript.JSObject;
+import org.apache.commons.lang3.tuple.Triple;
+import trace.*;
 import trace.base.Trace;
 import utils.FastImmPair;
 
+import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -25,6 +27,19 @@ public class PTA {
     private Location initial = null;
     private Set<Input> inputs = new HashSet<>();
     private Set<Location> locations = new HashSet<>();
+
+    @Override
+    public String toString() {
+        StringBuilder str = new StringBuilder(String.format("initial: %d, %s \n", initial.getId(), initial.getLabel()));
+        str.append(String.format("inputs: %s \n", inputs.toString()));
+        str.append(locations.toString() + "\n");
+        for (Location l : locations) {
+            for (Transition t : l.getAllTransitions()) {
+                str.append(t.toString()).append("\n");
+            }
+        }
+        return str.toString();
+    }
 
     public void addLocation(Location l) {
         locations.add(l);
@@ -51,8 +66,11 @@ public class PTA {
                     currentLocation = successor.getTarget();
                 }
             }
-            if (!existed)
+            if (!existed) {
+                System.out.println(logicalTimedTrace);
+                System.out.printf("location: %s, input: %s\n", currentLocation.getTraceRep(), step.left);
                 return null;
+            }
         }
         FastImmPair<TimedInput, TimedOutput> lastStep = logicalTimedTrace.get(logicalTimedTrace.length()-2);
         return FastImmPair.of(currentLocation, lastStep.right.isReset() ? 0.0 : lastStep.left.getClockVal());
@@ -66,6 +84,65 @@ public class PTA {
         successors.forEach(transition -> distribution.put(TimedOutput.create(transition.isReset(), transition.getTarget().getLabel().getSymbol()),
                 transition.getProbability()));
         return distribution;
+    }
+
+    public Triple<Location, Double, List<Boolean>> getStateReachedByLogicalTimedTrace(TimedTrace logicalTimedTrace) {
+        if (logicalTimedTrace.length() == 1) {
+            return Triple.of(initial, 0.0, new ArrayList<>());
+        }
+        Location currentLocation = initial;
+        double clockVal = 0.0;
+        List<Boolean> resets = new ArrayList<>();
+        for (FastImmPair<TimedInput, Output> step : logicalTimedTrace.getTrace()) {
+            boolean existed = false;
+            if (step.left.getClockVal() - clockVal < 0) {
+                return null;
+            }
+            Set<Transition> successors = currentLocation.getTransitions().get(step.left.getInput())
+                    .stream().filter(transition -> transition.getGuard().enableAction(step.left.getClockVal()))
+                    .collect(Collectors.toSet());
+            for (Transition successor : successors) {
+                if (successor.getTarget().getLabel().equals(step.right)) {
+                    existed = true;
+                    resets.add(successor.isReset());
+                    clockVal = successor.isReset() ? 0.0 : step.left.getClockVal();
+                    currentLocation = successor.getTarget();
+                }
+            }
+            if (!existed) {
+//                System.out.println(logicalTimedTrace);
+//                System.out.printf("location: %s, input: %s\n", currentLocation.getTraceRep(), step.left);
+                return null;
+            }
+        }
+
+        return Triple.of(currentLocation, clockVal, resets);
+    }
+
+    public Map<TimedOutput, Double> getDistribution(Location source, TimedInput input) {
+        Map<TimedOutput, Double> distribution = new HashMap<>();
+        Set<Transition> successors = source.getTransitions().get(input.getInput())
+                .stream().filter(transition -> transition.getGuard().enableAction(input.getClockVal()))
+                .collect(Collectors.toSet());
+        successors.forEach(transition -> distribution.put(TimedOutput.create(transition.isReset(), transition.getTarget().getLabel().getSymbol()),
+                transition.getProbability()));
+        return distribution;
+    }
+
+    public OutputDistribution outputDistributionQuery(TimedIncompleteTrace logicalTimedTestSeq) {
+        TimedTrace trace = logicalTimedTestSeq.getTrace();
+        TimedInput lastInput = logicalTimedTestSeq.get(logicalTimedTestSeq.length() - 1).right;
+        Triple<Location, Double, List<Boolean>> triple = getStateReachedByLogicalTimedTrace(trace);
+        if (triple == null || triple.getLeft() == null) {
+//            System.out.printf("seq: %s, reason: unreachable%n", logicalTimedTestSeq);
+            return new OutputDistribution();
+        }
+        if (lastInput.getClockVal() - triple.getMiddle() < 0) {
+//            System.out.printf("seq: %s, reason: logical time error!%n", logicalTimedTestSeq);
+            return new OutputDistribution();
+        }
+        Map<TimedOutput, Double> distribution = getDistribution(triple.getLeft(), lastInput);
+        return new OutputDistribution(triple.getRight(), distribution);
     }
 
     public FastImmPair<Location, Double> getStateReachedByDelayTimedTrace(TimedTrace delayTimedTrace) {
@@ -218,6 +295,49 @@ public class PTA {
             }
         });
         return transitionList;
+    }
+
+    public void storeMemory(String path) {
+        JSONObject pta = new JSONObject();
+        pta.put("init", initial.getId());
+        JSONObject locations = new JSONObject();
+        for (Location l : this.locations) {
+            locations.put(String.valueOf(l.getId()), l.getLabel().getSymbol());
+        }
+        pta.put("location", locations);
+        int counter = 0;
+        JSONObject transitions = new JSONObject();
+        for (Location l : this.locations) {
+            for (Map.Entry<Input, Set<Transition>> entry :
+                    l.getTransitions().entrySet()) {
+                Input input = entry.getKey();
+                for (Transition t : entry.getValue()) {
+                    Guard g = t.getGuard();
+                    boolean reset = t.isReset();
+                    Location target = t.getTarget();
+                    double prob = t.getProbability();
+                    for (Interval interval : g.getIntervals()) {
+                        JSONArray transition = new JSONArray();
+                        transition.add(l.getId());
+                        transition.add(input.getSymbol());
+                        transition.add(interval.toString());
+                        transition.add(reset);
+                        transition.add(target.getId());
+                        transition.add(prob);
+                        transitions.put(String.valueOf(counter), transition);
+                        counter++;
+                    }
+                }
+            }
+        }
+        pta.put("transition", transitions);
+
+        String jsonStr = pta.toString();
+        try(PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(new File(path))))) {
+            writer.write(jsonStr);
+        }catch (IOException e){
+            e.printStackTrace();
+        }
     }
 
     public void show(){

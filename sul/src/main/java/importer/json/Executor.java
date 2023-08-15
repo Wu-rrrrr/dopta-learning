@@ -1,6 +1,7 @@
 package importer.json;
 
 import automaton.*;
+import trace.TimedIncompleteTrace;
 import utils.FastImmPair;
 
 import java.util.*;
@@ -45,6 +46,10 @@ public class Executor {
         return null;
     }
 
+    public OutputDistribution execute(TimedIncompleteTrace logicalTimedTestSeq) {
+        return adapter.outputDistributionQuery(logicalTimedTestSeq);
+    }
+
     public FastImmPair<Boolean, String> execute(String input, double delayTime) {
 //        if (delayTime < 0) {
 //            currentClockVal = 0.0;
@@ -55,29 +60,31 @@ public class Executor {
             return null;
         }
 
-        List<Transition> transFromState = new ArrayList<>();
-        for (Transition successor : transitions.get(currentLocation)) {
-            if (successor.getInput().equals(Input.create(input))
-                    && successor.getGuard().enableAction(currentClockVal + delayTime)) {
-                transFromState.add(successor);
-            }
-        }
+//        List<Transition> transFromState = new ArrayList<>();
+//        for (Transition successor : transitions.get(currentLocation)) {
+//            if (successor.getInput().equals(Input.create(input))
+//                    && successor.getGuard().enableAction(currentClockVal + delayTime)) {
+//                transFromState.add(successor);
+//            }
+//        }
 //        List<Transition> transFromState = currentLocation.getAllTransitions()
 //                .stream().filter(transition -> transition.getInput().equals(Input.create(input))
 //                        && transition.getGuard().enableAction(currentClockVal + delayTime)).collect(Collectors.toList());
-        if (transFromState.isEmpty()) {
-            System.out.println("target transition is not complete");
-            System.exit(0);
-        }
+//        if (transFromState.isEmpty()) {
+//            System.out.println("target transition is not complete");
+//            System.exit(0);
+//        }
         double selectionProbability = (double) rnd.nextInt(precision) / precision;
 //        double selectionProbability = rnd.nextDouble();
-        for (Transition t : transFromState) {
-            if (selectionProbability <= t.getProbability()) {
-                currentLocation = t.getTarget();
-                currentClockVal = t.isReset() ? 0.0 : currentClockVal + delayTime;
-                return FastImmPair.of(t.isReset(), currentLocation.getLabel().getSymbol());
-            } else {
-                selectionProbability -= t.getProbability();
+        for (Transition t : transitions.get(currentLocation)) {
+            if (t.getInput().equals(Input.create(input)) && t.getGuard().enableAction(currentClockVal + delayTime)) {
+                if (selectionProbability <= t.getProbability()) {
+                    currentLocation = t.getTarget();
+                    currentClockVal = t.isReset() ? 0.0 : currentClockVal + delayTime;
+                    return FastImmPair.of(t.isReset(), currentLocation.getLabel().getSymbol());
+                } else {
+                    selectionProbability -= t.getProbability();
+                }
             }
         }
 

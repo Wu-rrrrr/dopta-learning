@@ -8,6 +8,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import lombok.NoArgsConstructor;
 import suls.SUL;
+import trace.TimedIncompleteTrace;
 import utils.FastImmPair;
 
 import java.io.BufferedReader;
@@ -123,5 +124,10 @@ public class JsonSUL implements SUL {
     @Override
     public Set<Input> getInputs() {
         return target.getInputs();
+    }
+
+    @Override
+    public OutputDistribution execute(TimedIncompleteTrace logicalTimedTestSeq) {
+        return executor.execute(logicalTimedTestSeq);
     }
 }

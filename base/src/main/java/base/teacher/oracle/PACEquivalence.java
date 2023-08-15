@@ -66,7 +66,6 @@ public class PACEquivalence extends EquivalenceOracle {
 
                 boolean isComplete = treeAnswer.isComplete();
                 if (!isComplete) {
-//                    System.out.printf("%s-%s\n", prefix.convert(), lastInput);
                     incompleteTraces.add(incompleteTrace.convert());
                     continue;
                 }
@@ -84,7 +83,6 @@ public class PACEquivalence extends EquivalenceOracle {
                 break;
             List<ResetTimedTrace> sampled = outputOracle.performQueries(incompleteTraces);
             for (ResetTimedTrace trace : sampled) {
-//                System.out.println(trace);
                 tree.addObservationTrace(trace);
             }
             System.out.printf("未完全采样的序列有：%d\n", incompleteTraces.size());

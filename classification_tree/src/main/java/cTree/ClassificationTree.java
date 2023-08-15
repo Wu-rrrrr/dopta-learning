@@ -69,6 +69,7 @@ public class ClassificationTree implements Learner {
 
     @Override
     public void learn(LearningSetting setting) throws IOException {
+        long startOfTime = System.currentTimeMillis();
         init(teacher.getInitialOutput());
         refineCTree();
 
@@ -106,6 +107,8 @@ public class ClassificationTree implements Learner {
             refineCTree();
         } while (true);
 
+        long endOfTime = System.currentTimeMillis();
+
         dotExp.writeToFile(hypo, "hypotheses/hyp_final.dot");
         writeTreeToFile("hypotheses/tree_final.dot");
         if (setting.getRmlExp() != null)
@@ -113,6 +116,7 @@ public class ClassificationTree implements Learner {
         setting.setNrEq(count);
         setting.setRounds(rounds);
         setting.setHypothesis(hypo);
+        setting.setTime(endOfTime - startOfTime);
     }
 
     @Override
@@ -123,6 +127,11 @@ public class ClassificationTree implements Learner {
     @Override
     public void show() {
 
+    }
+
+    @Override
+    public Compatibility getCompChecker() {
+        return this.compChecker;
     }
 
     @Override
@@ -390,6 +399,85 @@ public class ClassificationTree implements Learner {
     }
 
     @Override
+    public PTA getExactHypothesis () {
+        // construct tree
+        for (LeafNode leaf : getLeaves()) {
+            Node node = root.get(leaf.getLast());
+            while (node.isInnerNode()) {
+                InnerNode innerNode = (InnerNode) node;
+                FastImmPair<Node, Boolean> nextEdge = getNode(innerNode, teacher.query(leaf.getSequence(), innerNode.getSequence()));
+                node = nextEdge.left;
+                OutputDistribution od = teacher.outputDistributionQuery(leaf.getSequence(), innerNode.getSequence());
+                if (innerNode.getChild(od) == null) {
+                    innerNode.addDist(od, node);
+                }
+            }
+        }
+
+        Location initial = null;
+        Map<LeafNode, Location> stateExactMap = new HashMap<>();
+        int id = 0;
+        for (LeafNode leaf : getLeaves()) {
+            Location l = new Location(++id, leaf.getLast());
+            stateExactMap.put(leaf, l);
+            if (leaf.getSequence().length() == 1) {
+                initial = l;
+            }
+        }
+
+        Map<Location, Map<Input, Map<Double, Map<Edge, Double>>>> discreteTransitions = new HashMap<>();
+        for (Track track : tracks) {
+            Location source = stateExactMap.get(track.getSource());
+            Input input = track.getInput().getInput();
+            Double logicalTime = track.getInput().getClockVal();
+            Map<Edge, Double> dist = new HashMap<>();
+            OutputDistribution od = teacher.outputDistributionQuery(track.getSource().getSequence(), TimedSuffixTrace.empty(track.getInput()));
+            if (od.getDistribution() != null) {
+                for (Map.Entry<TimedOutput, Double> edge :
+                        od.getDistribution().entrySet()) {
+                    ResetTimedTrace trace = track.getSource().getSequence().append(FastImmPair.of(track.getInput(), edge.getKey()));
+                    LeafNode target = siftExact(trace);
+                    dist.put(new Edge(edge.getKey().isReset(), stateExactMap.get(target)), edge.getValue());
+                }
+            }
+
+            discreteTransitions.computeIfAbsent(source, k -> new HashMap<>());
+            Map<Input, Map<Double, Map<Edge, Double>>> map = discreteTransitions.get(source);
+            map.computeIfAbsent(input, k -> new HashMap<>());
+            Map<Double, Map<Edge, Double>> map2 = map.get(input);
+            map2.put(logicalTime, dist);
+        }
+
+        Set<Location> locations = discreteTransitions.keySet();
+        for (Map.Entry<Location, Map<Input, Map<Double, Map<Edge, Double>>>> entry : discreteTransitions.entrySet()){
+            Location source = entry.getKey();
+            for (Map.Entry<Input, Map<Double, Map<Edge, Double>>> item :
+                    entry.getValue().entrySet()) {
+                Input i = item.getKey();
+                Map<Map<Edge, Double>, Guard> relation = getExactDistributionGuardRelation(item.getValue());
+                for (Map.Entry<Map<Edge, Double>, Guard> tran : relation.entrySet()) {
+                    Guard g = tran.getValue();
+                    for (Map.Entry<Edge, Double> edge : tran.getKey().entrySet()) {
+                        source.addTransition(g, i, edge.getValue(), edge.getKey().isReset(), edge.getKey().getTarget());
+                    }
+                }
+            }
+        }
+
+        return new PTA(initial, inputs, locations);
+    }
+
+    private LeafNode siftExact(ResetTimedTrace trace) {
+        Node node = root.get(trace.lastOutput());
+        while (node.isInnerNode()) {
+            InnerNode innerNode = (InnerNode) node;
+            OutputDistribution od = teacher.outputDistributionQuery(trace, innerNode.getSequence());
+            node = innerNode.getChild(od);
+        }
+        return (LeafNode) node;
+    }
+
+    @Override
     public PTA getFinalHypothesis() {
         return hypothesis;
     }
@@ -604,8 +692,7 @@ public class ClassificationTree implements Learner {
                 complete = false;
                 incompleteTraces.add(new TimedIncompleteTrace(lv.getSequence().convert(), suffix));
             }
-            if ((tarDist.isComplete() && hypDist.isComplete() && tarDist.isValid() != hypDist.isValid())
-                    || !hypDist.answerEqual(tarDist, compChecker)) {
+            if (!hypDist.answerEqual(tarDist, compChecker)) {
                 SiftResult siftResult = sift(lu.getSequence().append(triple.getMiddle()));
                 if (!siftResult.isUnambiguous()) {
                     complete = false;
@@ -614,8 +701,7 @@ public class ClassificationTree implements Learner {
                     InnerNode discriminator = (InnerNode) lowestCommonAncestor(lv, siftResult.getLeafNode());
                     tarDist = teacher.query(lu.getSequence().append(triple.getMiddle()), discriminator.getSequence());
                     hypDist = teacher.query(lv.getSequence(), discriminator.getSequence());
-                    if ((tarDist.isComplete() && hypDist.isComplete() && tarDist.isValid() != hypDist.isValid())
-                            || !tarDist.answerEqual(hypDist, compChecker)) {
+                    if (!tarDist.answerEqual(hypDist, compChecker)) {
                         return new ErrorIndexResult(lu, triple.getMiddle(), lv, suffix, ErrorEnum.RefineGuard);
                     }
                 } else {

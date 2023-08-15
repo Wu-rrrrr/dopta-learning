@@ -78,21 +78,68 @@ public class Evaluator {
 		for(LearnerConfig config : learnConfigs){
 			config.setSampleTraces(allLoggedTraces);
 			LearnerInstance learner = config.instantiate();
+			sampleTesting.setCompChecker(learner.getCompChecker());
 			System.out.println("Evaluating " + config.description());
-			long startOflearning = System.currentTimeMillis();
+//			long startOflearning = System.currentTimeMillis();
 			PTA learnedPTA = learner.learn();
-			long endOfLearning = System.currentTimeMillis();
+			String hypoPath = String.format("%s/hypothesis/%s-%d_hypo_%s.json", outputPath, groupName, index, config.description());
+			learnedPTA.storeMemory(hypoPath);
+//			long endOfLearning = System.currentTimeMillis();
 			System.out.println("Finished learning with " + config.description());
+//			PTA exactLearnedPTA = learner.getExactHypo();
+//			System.out.println(exactLearnedPTA.toString());
 			sampleTesting.evaluatePassRatio(learnedPTA, samplingNum, config.getBound());
+//			sampleTesting.evaluatePassRatio(JsonSUL.getPtaFromJsonFile(hypoPath).getTargetModel(), samplingNum, config.getBound());
 			EvalResult result = new EvalResult(config.description(), config.parameters());
-			result.setLearningTime(endOfLearning-startOflearning);
+			result.setLearningTime(learner.getLearningTime());
 			result.setModelSize(learnedPTA.getLocations().size());
 			result.setNrSteps(learner.getNrSteps());
 			result.setNrTests(learner.getNrTests());
 			result.setNrRounds(learner.getNrRounds());
 			result.setNrEq(learner.getNrEq());
 			result.setPassRatio(sampleTesting.getPassRatio());
-			result.setKlDivergence(sampleTesting.getKlDivergence());
+//			result.setKlDivergence(sampleTesting.getKlDivergence());
+
+			measurement.addResult(result);
+			allLoggedTraces.addAll(learner.loggedSampleTraces());
+		}
+		measurement.persist(outputPath + "/" + String.format("%s_results.log", groupName));
+		System.out.println("Experiment finished.");
+		learnConfigs.clear();
+	}
+
+	public void evalProtocol(int samplingNum, String outputPath) throws Exception {
+		System.out.println("Computing Root Contention Protocol");
+		if(outputTrueDotModel)
+			outputTrueModelAsDot(outputPath);
+		new File(outputPath).mkdirs();
+		List<ResetTimedTrace> allLoggedTraces = new ArrayList<>();
+		EvalMeasurement measurement = new EvalMeasurement("testing Root Contention Protocol accuracy", "Root-Contention");
+		for(LearnerConfig config : learnConfigs){
+			config.setSampleTraces(allLoggedTraces);
+			LearnerInstance learner = config.instantiate();
+			sampleTesting.setCompChecker(learner.getCompChecker());
+			System.out.println("Evaluating " + config.description());
+//			long startOflearning = System.currentTimeMillis();
+			PTA learnedPTA = learner.learn();
+			String hypoPath = String.format("%s/hypothesis/Root-Contention_hypo_%s.json", outputPath, config.description());
+			learnedPTA.storeMemory(hypoPath);
+//			PTA exactLearnedPTA = learner.getExactHypo();
+//			long endOfLearning = System.currentTimeMillis();
+			System.out.println("Finished learning with " + config.description());
+			sampleTesting.evaluatePassRatio(learnedPTA, samplingNum, config.getBound());
+			EvalResult result = new EvalResult(config.description(), config.parameters());
+//			result.setLearningTime(endOfLearning-startOflearning);
+			result.setModelSize(learnedPTA.getLocations().size());
+			result.setNrSteps(learner.getNrSteps());
+			result.setNrTests(learner.getNrTests());
+			result.setNrRounds(learner.getNrRounds());
+			result.setNrEq(learner.getNrEq());
+			result.setLearningTime(learner.getLearningTime());
+			result.setPassRatio(sampleTesting.getPassRatio());
+//			result.setKlDivergence(sampleTesting.getKlDivergence());
+
+			exportPrismFile(outputPath, "Root-Contention-" + config.description(), learnedPTA);
 
 			measurement.addResult(result);
 			allLoggedTraces.addAll(learner.loggedSampleTraces());
@@ -103,40 +150,40 @@ public class Evaluator {
 	}
 
 	// use all if properties is empty
-	public void evalPropertyProbabilitiesAndTesting(int samplingNum, String pathToPrism,
-			String outputPath, String propertyFileName, String truePrismFile, int... properties) throws Exception{
-		System.out.println("Computing probabilities of properties:" );
-		if(outputTrueDotModel)
-			outputTrueModelAsDot(outputPath);
-		new File(outputPath).mkdirs();
-		List<ResetTimedTrace> allLoggedTraces = new ArrayList<>();
-		EvalMeasurement measurement = new EvalMeasurement("property-probabilities", groupName+"-"+index);
-		computeOptimalProbalities(measurement,pathToPrism,truePrismFile, propertyFileName,properties);
-		for(LearnerConfig config : learnConfigs){
-			config.setSampleTraces(allLoggedTraces);
-			LearnerInstance learner = config.instantiate();
-			System.out.println("Evaluating " + config.description());
-			long startOflearning = System.currentTimeMillis();
-			PTA learnedPTA = learner.learn();
-			long endOfLearning = System.currentTimeMillis();
-			System.out.println("Finished learning with " + config.description());
-			sampleTesting.evaluatePassRatio(learnedPTA, samplingNum, config.getBound());
-			EvalResult result = computePropertyProbabilies(config,pathToPrism,outputPath,
-					config.fileNameBase(),learnedPTA, propertyFileName, properties);
-			result.setLearningTime(endOfLearning-startOflearning);
-			result.setModelSize(learnedPTA.getLocations().size());
-			result.setNrSteps(learner.getNrSteps());
-			result.setNrTests(learner.getNrTests());
-			result.setNrRounds(learner.getNrRounds());
-			result.setPassRatio(sampleTesting.getPassRatio());
-			result.setKlDivergence(sampleTesting.getKlDivergence());
-			
-			measurement.addResult(result);
-			allLoggedTraces.addAll(learner.loggedSampleTraces());
-		}
-		measurement.persist(outputPath + "/" + String.format("%s_results.log", groupName));
-		System.out.println("Experiment finished.");
-	}
+//	public void evalPropertyProbabilitiesAndTesting(int samplingNum, String pathToPrism,
+//			String outputPath, String propertyFileName, String truePrismFile, int... properties) throws Exception{
+//		System.out.println("Computing probabilities of properties:" );
+//		if(outputTrueDotModel)
+//			outputTrueModelAsDot(outputPath);
+//		new File(outputPath).mkdirs();
+//		List<ResetTimedTrace> allLoggedTraces = new ArrayList<>();
+//		EvalMeasurement measurement = new EvalMeasurement("property-probabilities", groupName+"-"+index);
+//		computeOptimalProbalities(measurement,pathToPrism,truePrismFile, propertyFileName,properties);
+//		for(LearnerConfig config : learnConfigs){
+//			config.setSampleTraces(allLoggedTraces);
+//			LearnerInstance learner = config.instantiate();
+//			System.out.println("Evaluating " + config.description());
+//			long startOflearning = System.currentTimeMillis();
+//			PTA learnedPTA = learner.learn();
+//			long endOfLearning = System.currentTimeMillis();
+//			System.out.println("Finished learning with " + config.description());
+//			sampleTesting.evaluatePassRatio(learnedPTA, samplingNum, config.getBound());
+//			EvalResult result = computePropertyProbabilies(config,pathToPrism,outputPath,
+//					config.fileNameBase(),learnedPTA, propertyFileName, properties);
+//			result.setLearningTime(endOfLearning-startOflearning);
+//			result.setModelSize(learnedPTA.getLocations().size());
+//			result.setNrSteps(learner.getNrSteps());
+//			result.setNrTests(learner.getNrTests());
+//			result.setNrRounds(learner.getNrRounds());
+//			result.setPassRatio(sampleTesting.getPassRatio());
+//			result.setKlDivergence(sampleTesting.getKlDivergence());
+//
+//			measurement.addResult(result);
+//			allLoggedTraces.addAll(learner.loggedSampleTraces());
+//		}
+//		measurement.persist(outputPath + "/" + String.format("%s_results.log", groupName));
+//		System.out.println("Experiment finished.");
+//	}
 
 	private void outputTrueModelAsDot(String outputPath) throws IOException {
 		exportDotFile(outputPath, String.format("%s_true_model", groupName+"-"+index), trueModel);

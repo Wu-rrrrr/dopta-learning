@@ -5,6 +5,7 @@ import base.Compatibility;
 import base.learner.Answer;
 import base.learner.Learner;
 import base.learner.LearningSetting;
+import base.learner.Repf;
 import base.teacher.Teacher;
 import org.apache.commons.lang3.tuple.Triple;
 import trace.*;
@@ -51,6 +52,11 @@ public class ObservationTable implements Learner {
         for (Input input : inputs) {
             singleInputCols.add(TimedSuffixTrace.empty(TimedInput.create(input)));
         }
+    }
+
+    @Override
+    public Compatibility getCompChecker() {
+        return this.compChecker;
     }
 
     public void writeTableToFile(String fileName) throws IOException {
@@ -393,6 +399,9 @@ public class ObservationTable implements Learner {
 
     @Override
     public void learn(LearningSetting setting) throws IOException {
+        // start time
+        long startOfLearning = System.currentTimeMillis();
+
         init(teacher.getInitialOutput());
         fillTable();
 
@@ -427,12 +436,16 @@ public class ObservationTable implements Learner {
             fillTable();
         } while (true);
 
+        // end time
+        long endOfLearning = System.currentTimeMillis();
+
+        // output learned models
         dotExp.writeToFile(hypo, "hypotheses/hyp_final.dot");
         writeTableToFile("hypotheses/table_final.csv");
-        if (setting.getRmlExp() != null)
-            setting.getRmlExp().toFile(hypo, "hypotheses/hyp_final.prism");
+
         setting.setNrEq(count);
         setting.setRounds(rounds);
+        setting.setTime(endOfLearning - startOfLearning);
         setting.setHypothesis(hypo);
     }
 
@@ -559,19 +572,10 @@ public class ObservationTable implements Learner {
                 Row s2Row = shortRows.get(s2);
                 if (s1 != s2) {
                     if (s1.lastOutput().equals(s2.lastOutput()) && s1Row.statRowEquivalence(s2Row, compChecker)) {
-                        // 检查相同timed input下的frequencies是否compatible
-//                        Set<TimedInput> timedInputs = new HashSet<>(timeInputMap.get(s1));
-//                        timedInputs.addAll(timeInputMap.get(s2));
                         Set<TimedInput> timedInputs = getAllSameInput(s1, s2);
                         for (TimedInput timedInput : timedInputs) {
                             Answer answer1 = teacher.query(s1, TimedSuffixTrace.empty(timedInput));
                             Answer answer2 = teacher.query(s2, TimedSuffixTrace.empty(timedInput));
-//                            if (!answer1.isComplete() && !timeInputMap.get(s1).contains(timedInput)) {
-//                                consistentCheckIncomplete.add(new TimedIncompleteTrace(s1.convert(), TimedSuffixTrace.empty(timedInput)));
-//                            }
-//                            if (!answer2.isComplete() && !timeInputMap.get(s2).contains(timedInput)) {
-//                                consistentCheckIncomplete.add(new TimedIncompleteTrace(s2.convert(), TimedSuffixTrace.empty(timedInput)));
-//                            }
                             if (!answer1.answerEqual(answer2, compChecker)) {
                                 return Optional.of(TimedSuffixTrace.empty(timedInput));
                             }
@@ -723,6 +727,7 @@ public class ObservationTable implements Learner {
             throw new RuntimeException("Cannot create hypothesis");
         }
         PTA hypothesis = new PTA();
+        Repf repf = new Repf();
         Map<ResetTimedTrace, FastImmPair<Location, Set<ResetTimedTrace>>> traceToStates = createStatesForGroups(rowEquiv);
         // assumption DLMDP -> exactly one initial output
         Location initial = traceToStates.get(firstShortTrace).getLeft();
@@ -888,5 +893,128 @@ public class ObservationTable implements Learner {
     @Override
     public PTA getFinalHypothesis() {
         return null;
+    }
+
+    @Override
+    public PTA getExactHypothesis () {
+
+        // construct table
+        HashMap<ResetTimedTrace, ExactRow> shortExactRows = new HashMap<>();
+        HashMap<ResetTimedTrace, ExactRow> longExactRows = new HashMap<>();
+        for (ResetTimedTrace s : Srows) {
+            ExactRow row = new ExactRow();
+            for (TimedSuffixTrace suffix : Ecols) {
+                row.put(suffix, teacher.outputDistributionQuery(s, suffix));
+            }
+//            for (TimedInput singleInput : timeInputMap.get(s)) {
+//                TimedSuffixTrace single = TimedSuffixTrace.empty(singleInput);
+//                row.put(single, teacher.outputDistributionQuery(s, single));
+//            }
+            shortExactRows.put(s, row);
+//            System.out.printf("%s-------->%s\n", s, row);
+        }
+
+        for (ResetTimedTrace s : Srows) {
+            for (TimedInput i : timeInputMap.get(s)) {
+                TimedSuffixTrace singleInput = TimedSuffixTrace.empty(i);
+                OutputDistribution distribution = teacher.outputDistributionQuery(s, singleInput);
+//                System.out.printf("s: %s, input: %s, dist: %s\n", s, singleInput, distribution);
+
+                if (distribution.getDistribution() != null) {
+                    for (TimedOutput o : distribution.getDistribution().keySet()) {
+                        ResetTimedTrace longTrace = s.append(FastImmPair.of(i, o));
+                        if (!longExactRows.containsKey(longTrace) && !shortExactRows.containsKey(longTrace)) {
+                            ExactRow longRow = new ExactRow();
+                            for (TimedSuffixTrace e : Ecols) {
+                                OutputDistribution od = teacher.outputDistributionQuery(longTrace, e);
+                                longRow.put(e, od);
+                            }
+                            longExactRows.put(longTrace, longRow);
+                        }
+                    }
+                }
+            }
+        }
+
+        // construct hypothesis
+        Location initial = null;
+        Map<ResetTimedTrace, Location> stateMap = new HashMap<>();
+        Map<String, Map<ExactRow, Location>> rowMap = new HashMap<>();
+        int id = 0;
+        for (ResetTimedTrace s : Srows) {
+            String output = s.lastOutput().getSymbol();
+            ExactRow row = shortExactRows.get(s);
+            if (rowMap.get(output) == null || rowMap.get(output).get(row) == null) {
+                id++;
+                Location l = new Location(id, s.lastOutput());
+                rowMap.computeIfAbsent(output, k -> new HashMap<>());
+                rowMap.get(output).put(row, l);
+            }
+
+            Location l = rowMap.get(output).get(row);
+            stateMap.put(s, l);
+            if (s.length() == 1)
+                initial = l;
+        }
+        for (Map.Entry<ResetTimedTrace, ExactRow> longExactRow :
+                longExactRows.entrySet()) {
+            String output = longExactRow.getKey().lastOutput().getSymbol();
+            ExactRow row = longExactRow.getValue();
+            Location l = rowMap.get(output).get(row);
+            if (l == null) {
+                System.out.println(longExactRow.getKey());
+                System.out.println(rowMap.get(output));
+                System.out.println(row);
+                System.out.println(Srows);
+                System.exit(0);
+            }
+            stateMap.put(longExactRow.getKey(), l);
+        }
+
+        Map<Location, Map<Input, Map<Double, Map<Edge, Double>>>> discreteTransitions = new HashMap<>();
+        for (ResetTimedTrace s : Srows) {
+            Location source = stateMap.get(s);
+            for (TimedInput i : timeInputMap.get(s)) {
+                Map<Edge, Double> distribution = new HashMap<>();
+                ExactRow r = shortExactRows.get(s);
+                if (r == null) {
+                    System.out.println("row is error");
+                }
+                OutputDistribution outputDistribution = teacher.outputDistributionQuery(s, TimedSuffixTrace.empty(i));
+                if (outputDistribution.getDistribution() != null) {
+                    for (Map.Entry<TimedOutput, Double> item :
+                            outputDistribution.getDistribution().entrySet()) {
+                        ResetTimedTrace ext = s.append(FastImmPair.of(i, item.getKey()));
+                        Edge edge = new Edge(item.getKey().isReset(), stateMap.get(ext));
+                        distribution.put(edge, item.getValue());
+                    }
+                }
+                discreteTransitions.computeIfAbsent(source, k -> new HashMap<>());
+                Map<Input, Map<Double, Map<Edge, Double>>> map = discreteTransitions.get(source);
+                map.computeIfAbsent(i.getInput(), k -> new HashMap<>());
+                Map<Double, Map<Edge, Double>> set = map.get(i.getInput());
+                set.put(i.getClockVal(), distribution);
+            }
+        }
+
+
+        Set<Location> locations = discreteTransitions.keySet();
+        for (Map.Entry<Location, Map<Input, Map<Double, Map<Edge, Double>>>> entry : discreteTransitions.entrySet()){
+            Location source = entry.getKey();
+            for (Map.Entry<Input, Map<Double, Map<Edge, Double>>> item :
+                    entry.getValue().entrySet()) {
+                Input i = item.getKey();
+                Map<Map<Edge, Double>, Guard> relation = getExactDistributionGuardRelation(item.getValue());
+                for (Map.Entry<Map<Edge, Double>, Guard> tran : relation.entrySet()) {
+                    Guard g = tran.getValue();
+                    for (Map.Entry<Edge, Double> edge : tran.getKey().entrySet()) {
+                        source.addTransition(g, i, edge.getValue(), edge.getKey().isReset(), edge.getKey().getTarget());
+                    }
+                }
+            }
+        }
+
+        return new PTA(initial, inputs, locations);
+
     }
 }

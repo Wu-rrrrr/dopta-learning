@@ -36,7 +36,7 @@ import java.util.Set;
 public class Node {
 	private Map<FastImmPair<TimedOutput, TimedInput>,Node> children = new HashMap<>();
 	private Map<TimedOutput, Integer> outputFrequencies = new HashMap<>();
-	private boolean complete = ObservationTree.completenessThreshold == 0 ? true : false;
+	private boolean complete = outputFrequencies.values().stream().mapToInt(Integer::intValue).sum() == ObservationTree.completenessThreshold;
 	// TODO add this field to table cells
 	private int overallNrOutputs = 0;
 

@@ -1,58 +1,36 @@
 package cTree.node;
 
-import automaton.Output;
 import automaton.OutputDistribution;
 import base.learner.Answer;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import trace.TimedSuffixTrace;
 
 import java.util.*;
 
-@EqualsAndHashCode(callSuper = true)
 @Data
-public class InnerNode extends Node<TimedSuffixTrace>{
-
+public class ExactInnerNode extends Node<TimedSuffixTrace> {
     private Node preNode;
-    private Map<Answer, Node> keyChildMap;
-    private Map<OutputDistribution, Node> exactDistChildMap;
+    private Map<OutputDistribution, Node> keyChildMap;
 
-    public InnerNode(TimedSuffixTrace sequence) {
+    public ExactInnerNode(TimedSuffixTrace sequence) {
         super(sequence);
         keyChildMap = new HashMap<>();
     }
 
-    public void add(Answer key, Node node) {
+    public void add(OutputDistribution key, Node node) {
         if (keyChildMap == null) {
             keyChildMap = new HashMap<>();
         }
         keyChildMap.put(key, node);
     }
 
-    public void addDist(OutputDistribution od, Node node) {
-        if (exactDistChildMap == null) {
-            exactDistChildMap = new HashMap<>();
-        }
-        exactDistChildMap.put(od, node);
-    }
-
-    public Node getChild(OutputDistribution od) {
-        if (exactDistChildMap == null) {
-            exactDistChildMap = new HashMap<>();
-            return null;
-        }
-        Node node = exactDistChildMap.get(od);
-        return node;
-    }
-
-    public Node getChild(Answer key) {
-        Node node = keyChildMap.get(key);
-        return node;
+    public Node getChild(OutputDistribution key) {
+        return keyChildMap.get(key);
     }
 
     public void removeLeafNode(LeafNode leafNode) {
-        Answer key = null;
-        for (Map.Entry<Answer, Node> child : keyChildMap.entrySet()) {
+        OutputDistribution key = null;
+        for (Map.Entry<OutputDistribution, Node> child : keyChildMap.entrySet()) {
             if (child.getValue() == leafNode) {
                 key = child.getKey();
                 break;
@@ -70,15 +48,15 @@ public class InnerNode extends Node<TimedSuffixTrace>{
 
     public List<LeafNode> getAllOffspring() {
         List<LeafNode> offspring = new ArrayList<>();
-        LinkedList<InnerNode> queue = new LinkedList<>();
+        LinkedList<ExactInnerNode> queue = new LinkedList<>();
         queue.add(this);
         while (!queue.isEmpty()) {
-            InnerNode current = queue.removeFirst();
-            for (Node child : current.keyChildMap.values()) {
+            ExactInnerNode current = queue.removeFirst();
+            for (Node child : current.getKeyChildMap().values()) {
                 if (child.isLeaf())
                     offspring.add((LeafNode) child);
                 else
-                    queue.add((InnerNode) child);
+                    queue.add((ExactInnerNode) child);
             }
         }
         return offspring;

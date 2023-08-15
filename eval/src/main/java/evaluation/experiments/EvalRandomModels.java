@@ -22,6 +22,8 @@ import evaluation.config.experiment_configs.*;
 import base.teacher.oracle.EqMode;
 import importer.json.JsonSUL;
 
+import java.util.Random;
+
 public class EvalRandomModels {
 	public static void main(String args[]) throws Exception{
 		long seed = 1L;
@@ -29,13 +31,13 @@ public class EvalRandomModels {
 		String modelName = "10_2_7_40";
 
 		Evaluator evaluator = new Evaluator(seed);
-		for (int i = 4; i <= 4; i++) {
+		for (int i = 1; i <= 10; i++) {
 			JsonSUL trueSUL = JsonSUL.getPtaFromJsonFile(String.format("%s/%s-%d.json", trueSulFile, modelName, i));
 			trueSUL.init(seed);
 
 			evaluator.setSul(trueSUL, modelName, i);
 			evaluator.addConfig(RandomModelConfig102740.observationTable(seed, trueSUL, EqMode.PAC));
-			evaluator.addConfig(RandomModelConfig102740.classificationTree(seed, trueSUL, EqMode.PAC));
+//			evaluator.addConfig(RandomModelConfig102740.classificationTree(seed, trueSUL, EqMode.PAC));
 
 			evaluator.evalTesting(20000, "results_only_testing/randomModels");
 		}

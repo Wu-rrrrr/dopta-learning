@@ -139,5 +139,24 @@ public class Interval {
     }
 
     @Override
-    public String toString() { return interval.toString();}
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        if (interval.lowerBoundType() == BoundType.CLOSED) {
+            sb.append("[");
+        } else {
+            sb.append("(");
+        }
+        sb.append(interval.lowerEndpoint()).append(",");
+        if (interval.hasUpperBound()) {
+            sb.append(interval.upperEndpoint());
+            if (interval.upperBoundType() == BoundType.CLOSED) {
+                sb.append("]");
+            } else {
+                sb.append(")");
+            }
+        } else {
+            sb.append("+)");
+        }
+        return sb.toString();
+    }
 }

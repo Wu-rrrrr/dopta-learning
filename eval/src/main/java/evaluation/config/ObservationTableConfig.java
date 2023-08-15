@@ -109,12 +109,12 @@ public class ObservationTableConfig implements LearnerConfig{
 
 			@Override
 			public long getNrSteps() {
-				return sul.getTraces().stream().mapToLong(Trace::length).sum();
+				return sul.getNrTests();
 			}
 
 			@Override
 			public long getNrTests() {
-				return sul.getTraces().size();
+				return sul.getNrSample();
 			}
 		};
 	}
@@ -131,7 +131,7 @@ public class ObservationTableConfig implements LearnerConfig{
 
 	@Override
 	public String description() {
-		return "L* for PTAs" + (compChecker.isAdaptive() ? "(adapt.)" :"");
+		return "table" + (compChecker.isAdaptive() ? "(adapt.)" :"");
 	}
 
 	@Override

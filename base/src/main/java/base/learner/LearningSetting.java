@@ -14,7 +14,9 @@ public class LearningSetting {
 
     private int nrEq;
     private int rounds;
+    private long time;
     private PTA hypothesis;
+    private PTA exactHypothesis;
 
     public LearningSetting(int printFrequency, RMLExporter rmlExp) {
         this.printFrequency = printFrequency;
